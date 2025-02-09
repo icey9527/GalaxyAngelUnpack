@@ -188,15 +188,11 @@ def uncompress(data, output_file):
                 uncompress_data.append(uncompress_byte)
                 iVar11 += 1
     else:
-        uncompress_data = data #若文件头不匹配，就以原始文件写出，记得在list表里标注打包时不要压缩
-        compstate = True
+        return False #若文件头不匹配，就返回，记得在list表里标注打包时不要压缩
 
     # 写出最终的解密结果
     with open(output_file, 'wb') as f:
         f.write(uncompress_data)
-    if compstate:
-        return False
-    else:
         return True
 
 def unpack(filename,output_dir):
@@ -257,6 +253,10 @@ def unpack(filename,output_dir):
             else:
                 count_file += 1
                 compstate = uncompress(data,os.path.join(output_dir, filename))
+                if not compstate:
+                    f.seek(offset)
+                    with open(os.path.join(output_dir, filename), 'wb') as fi:
+                        fi.write(f.read(UncompressedSize))
                 print(f"{count_file}: {filename}")
                 file_log.append((f"{count_file}: {hex(type)} {hex(name_offset)} {hex(sign)} {hex(offset)} {hex(UncompressedSize)} {hex(size)} {filename}"))
             rebuild['idx'].append([hex(type), hex(sign), hex(offset), filename, compstate])
