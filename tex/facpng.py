@@ -5,32 +5,25 @@ import os
 from pathlib import Path
 
 def read_binary_fac_image_8bpp(data):
-    
     try:
-        flag = data[0x48:0x49].hex()
-        if  flag == '00':
-            pixel_data_offset = 0x90
-            width = struct.unpack('<H', data[0x78:0x7a])[0]
-            height = struct.unpack('<H', data[0x7a:0x7c])[0]            
-        elif flag == '01':
-            pixel_data_offset = 0xb0
-            width = struct.unpack('<H', data[0x98:0x9a])[0]
-            height = struct.unpack('<H', data[0x9a:0x9c])[0]
-        elif flag == '04':
-            pixel_data_offset = 0xd0
-            width = struct.unpack('<H', data[0xb8:0xba])[0]
-            height = struct.unpack('<H', data[0xba:0xbc])[0]
-        else:
-            pixel_data_offset = 0xc0
-            width = struct.unpack('<H', data[0xa8:0xaa])[0]
-            height = struct.unpack('<H', data[0xaa:0xac])[0]        
-        
+        pixel_data_offset = 0
+        for i in range(100):
+            if data[pixel_data_offset:pixel_data_offset+16].hex() == '00000000010000000000000010001000':
+                pixel_data_offset += 0x10
+                break
+            pixel_data_offset += 0x10
+
+        wh_offset = pixel_data_offset - 0x20
+        width = struct.unpack('<H', data[wh_offset+0x8:wh_offset+0xa])[0]
+        height = struct.unpack('<H', data[wh_offset+0xa:wh_offset+0xc])[0]
+
         palette_offset = width * height + pixel_data_offset
         palette_data = data[palette_offset : palette_offset + 256 * 4]
         
         # 原始调色板处理（完全保持原有逻辑）
         original_palette = []
         for i in range(256):
+    
             pos = i * 4
             r = palette_data[pos]
             g = palette_data[pos + 1]
@@ -38,6 +31,7 @@ def read_binary_fac_image_8bpp(data):
             a = palette_data[pos + 3]
             if a == 128:
                 a = 255
+            
             original_palette.append((r, g, b, a))
         
         # 调色板重排逻辑（完全保持原有算法）
@@ -158,7 +152,7 @@ def process_tex_file(input_path, output_folder):
                 output_filename = Path(input_path).stem + ".png"
                 output_path = os.path.join(output_folder, output_filename)
                 image.save(output_path)
-                #print(f"成功转换: {input_path} -> {output_path}")
+                print(f"成功转换: {input_path} -> {output_path}")
                 return True
             else:
                 print(f"无法渲染图像: {input_path}")
