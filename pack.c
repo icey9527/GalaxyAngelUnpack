@@ -4,9 +4,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "cJSON.h"
+#include <omp.h>
 
 #define XOR_KEY 0x72
-#define BUFFER_SIZE (1024 * 1024) // 1MB»º³åÇø
+#define BUFFER_SIZE (16 * 1024 * 1024) // 1MBç¼“å†²åŒº
 // compress
 #define WINDOW_SIZE 4096
 #define MAX_MATCH_LEN 18
@@ -24,21 +25,21 @@ int find_match(SlidingWindow* window, uint8_t* input, int cursor, int end, int* 
 uint32_t compress(uint8_t* input, uint32_t input_size, uint8_t** output);
 
 
-// »¬¶¯´°¿Ú³õÊ¼»¯
+// æ»‘åŠ¨çª—å£åˆå§‹åŒ–
 void window_init(SlidingWindow* window) {
     memset(window->data, 0, WINDOW_SIZE);
     window->pos = 0xFEE;
     window->size = 0;
 }
 
-// ¸üĞÂ»¬¶¯´°¿Ú
+// æ›´æ–°æ»‘åŠ¨çª—å£
 void window_update(SlidingWindow* window, uint8_t byte) {
     window->data[window->pos] = byte;
     window->pos = (window->pos + 1) % WINDOW_SIZE;
     if (window->size < WINDOW_SIZE) window->size++;
 }
 
-// ²éÕÒÆ¥Åä
+// æŸ¥æ‰¾åŒ¹é…
 int find_match(SlidingWindow* window, uint8_t* input, int cursor, int end, int* distance) {
     int max_len = 0;
     int max_pos = 0;
@@ -62,14 +63,14 @@ int find_match(SlidingWindow* window, uint8_t* input, int cursor, int end, int* 
     return (max_len >= MIN_MATCH_LEN) ? max_len : 0;
 }
 
-// Ö÷Ñ¹Ëõº¯Êı - ÍêÈ«»ùÓÚÄÚ´æ
+// ä¸»å‹ç¼©å‡½æ•° - å®Œå…¨åŸºäºå†…å­˜
 uint32_t compress(uint8_t* input, uint32_t input_size, uint8_t** output) {
-    // Ô¤¹À×î´óÊä³ö´óĞ¡ (ÊäÈë´óĞ¡ * 1.5 + 8)
+    // é¢„ä¼°æœ€å¤§è¾“å‡ºå¤§å° (è¾“å…¥å¤§å° * 1.5 + 8)
     uint32_t max_output_size = input_size + (input_size / 2) + 8;
     *output = malloc(max_output_size);
     if (!*output) return 0;
     
-    // Ğ´ÈëÍ·²¿Ä§ÊıºÍÔ­Ê¼´óĞ¡
+    // å†™å…¥å¤´éƒ¨é­”æ•°å’ŒåŸå§‹å¤§å°
     memcpy(*output, "\x20\x33\x3B\x31", 4);
     *((uint32_t*)(*output + 4)) = input_size;
     
@@ -136,7 +137,7 @@ uint32_t compress(uint8_t* input, uint32_t input_size, uint8_t** output) {
         output_pos += data_buffer_len;
     }
     
-    // ÖØĞÂµ÷ÕûÊä³ö»º³åÇø´óĞ¡
+    // é‡æ–°è°ƒæ•´è¾“å‡ºç¼“å†²åŒºå¤§å°
     *output = realloc(*output, output_pos);
     return output_pos;
 }
@@ -182,14 +183,14 @@ void compress_data(unsigned char** data, uint32_t* size) {
         *data = compressed_data;
         *size = compressed_size;
     } else if (compressed_data) {
-        // Èç¹ûÑ¹Ëõºó´óĞ¡Ã»ÓĞ±äĞ¡£¬±£³ÖÔ­Ñù
+        // å¦‚æœå‹ç¼©åå¤§å°æ²¡æœ‰å˜å°ï¼Œä¿æŒåŸæ ·
         free(compressed_data);
     }
 }
 
 
 void pack(const char* input_dir, const char* output_file, const char* index_file) {
-    // 1. ¶ÁÈ¡ idx.json
+    // 1. è¯»å– idx.json
     FILE* json_fp = fopen(index_file, "rb");
     fseek(json_fp, 0, SEEK_END);
     long json_size = ftell(json_fp);
@@ -202,7 +203,7 @@ void pack(const char* input_dir, const char* output_file, const char* index_file
     cJSON* root = cJSON_Parse(json_buffer);
     free(json_buffer);
 
-    // 2. ½âÎö start Çø£¨Ê®Áù½øÖÆÊı¾İ£©
+    // 2. è§£æ start åŒºï¼ˆåå…­è¿›åˆ¶æ•°æ®ï¼‰
     cJSON* start = cJSON_GetObjectItem(root, "start");
     char* hex_str = cJSON_GetArrayItem(start, 0)->valuestring;
     uint32_t hex_len = strlen(hex_str);
@@ -212,29 +213,29 @@ void pack(const char* input_dir, const char* output_file, const char* index_file
         bin_data[i / 2] = (unsigned char)strtoul(byte_str, NULL, 16);
     }
 
-    // 3. ´ò¿ªÊä³öÎÄ¼ş
+    // 3. æ‰“å¼€è¾“å‡ºæ–‡ä»¶
     FILE* dat = fopen(output_file, "wb");
     if (!dat) {
-        printf("ÎŞ·¨´´½¨Êä³öÎÄ¼ş: %s\n", output_file);
+        printf("æ— æ³•åˆ›å»ºè¾“å‡ºæ–‡ä»¶: %s\n", output_file);
         return;
     }
 
-    // 4. Ğ´Èë start Çø
+    // 4. å†™å…¥ start åŒº
     fwrite(bin_data, 1, hex_len / 2, dat);
     uint32_t name_table_offset = *(uint32_t*)(bin_data + 0x20);
     free(bin_data);
 
-    // 5. ¼ÆËãË÷Òı±í´óĞ¡£¨Ã¿¸öÌõÄ¿ 24 ×Ö½Ú£©
+    // 5. è®¡ç®—ç´¢å¼•è¡¨å¤§å°ï¼ˆæ¯ä¸ªæ¡ç›® 24 å­—èŠ‚ï¼‰
     cJSON* idx = cJSON_GetObjectItem(root, "idx");
     int entry_count = cJSON_GetArraySize(idx);
     uint32_t index_table_size = entry_count * 24;
 
-    // 6. Ğ´Èë¿ÕµÄË÷Òı±í£¨Õ¼Î»£¬ÉÔºóÌî³ä£©
+    // 6. å†™å…¥ç©ºçš„ç´¢å¼•è¡¨ï¼ˆå ä½ï¼Œç¨åå¡«å……ï¼‰
     unsigned char* zero_buffer = calloc(index_table_size, 1);
     fwrite(zero_buffer, 1, index_table_size, dat);
     free(zero_buffer);
 
-    // 7. Ğ´ÈëÎÄ¼şÃû±í£¬²¢¼ÇÂ¼ name_offset
+    // 7. å†™å…¥æ–‡ä»¶åè¡¨ï¼Œå¹¶è®°å½• name_offset
     
     uint32_t current_name_offset = 0;
 
@@ -242,98 +243,111 @@ void pack(const char* input_dir, const char* output_file, const char* index_file
         IndexEntry entry;
         process_index_entry(cJSON_GetArrayItem(idx, i), &entry);
 
-        // Ğ´ÈëÎÄ¼şÃû£¨´ø \0£©
+        // å†™å…¥æ–‡ä»¶åï¼ˆå¸¦ \0ï¼‰
         fseek(dat, name_table_offset + current_name_offset, SEEK_SET);
         fwrite(entry.filename, 1, strlen(entry.filename) + 1, dat);
 
-        // ¸üĞÂË÷Òı±íµÄ name_offset
-        fseek(dat, hex_len / 2 + (i * 24) + 4, SEEK_SET); // Ìøµ½ name_offset Î»ÖÃ
+        // æ›´æ–°ç´¢å¼•è¡¨çš„ name_offset
+        fseek(dat, hex_len / 2 + (i * 24) + 4, SEEK_SET); // è·³åˆ° name_offset ä½ç½®
         fwrite(&current_name_offset, 4, 1, dat);
         printf("%s: %u\n",entry.filename, name_table_offset +current_name_offset);
 
         current_name_offset += strlen(entry.filename) + 1;
     }
 
-    // 8. Ìî³äË÷Òı±íµÄÆäËû×Ö¶Î£¨type, sign, offset, sizeµÈ£©
+    // 8. å¡«å……ç´¢å¼•è¡¨çš„å…¶ä»–å­—æ®µï¼ˆtype, sign, offset, sizeç­‰ï¼‰
     for (int i = 0; i < entry_count; i++) {
         IndexEntry entry;
         process_index_entry(cJSON_GetArrayItem(idx, i), &entry);
 
-        // Ìøµ½µ±Ç°Ë÷ÒıÌõÄ¿µÄÆğÊ¼Î»ÖÃ
+        // è·³åˆ°å½“å‰ç´¢å¼•æ¡ç›®çš„èµ·å§‹ä½ç½®
         fseek(dat, hex_len / 2 + (i * 24), SEEK_SET);
 
-        // ÒÀ´ÎĞ´Èë type, name_offset, sign, offset, uncompressed_size, size
+        // ä¾æ¬¡å†™å…¥ type, name_offset, sign, offset, uncompressed_size, size
         fwrite(&entry.type, 4, 1, dat);
-        // name_offset ÒÑ¾­ÔÚ²½Öè7Ğ´Èë
-        fseek(dat, 4, SEEK_CUR); // Ìø¹ıÒÑĞ´ÈëµÄ name_offset
+        // name_offset å·²ç»åœ¨æ­¥éª¤7å†™å…¥
+        fseek(dat, 4, SEEK_CUR); // è·³è¿‡å·²å†™å…¥çš„ name_offset
         fwrite(&entry.sign, 4, 1, dat);
         fwrite(&entry.offset, 4, 1, dat);
         fwrite(&entry.uncompressed_size, 4, 1, dat);
         fwrite(&entry.size, 4, 1, dat);
     }
 
-// 9. Ğ´ÈëÎÄ¼şÊı¾İ
-for (int i = 0; i < entry_count; i++) {
-    IndexEntry entry;
-    process_index_entry(cJSON_GetArrayItem(idx, i), &entry);
+// 9. å†™å…¥æ–‡ä»¶æ•°æ®
+#pragma omp parallel  // åˆ›å»ºå¹¶è¡ŒåŒºåŸŸ
+#pragma omp single    // å•ä¸ªçº¿ç¨‹æ´¾å‘ä»»åŠ¡
+{
+    for (int i = 0; i < entry_count; i++) {
+        #pragma omp task firstprivate(i)  // ä¸ºæ¯ä¸ªiåˆ›å»ºä»»åŠ¡
+        {
+            IndexEntry entry;
+            process_index_entry(cJSON_GetArrayItem(idx, i), &entry);
 
-    if (entry.type == 1) continue; // Ìø¹ıÄ¿Â¼
+            if (entry.type != 1) {  // ä¿®æ”¹åˆ¤æ–­é€»è¾‘
+                char filepath[1024];
+                snprintf(filepath, sizeof(filepath), "%s/%s", input_dir, entry.filename);
 
-    char filepath[1024];
-    snprintf(filepath, sizeof(filepath), "%s/%s", input_dir, entry.filename);
+                FILE* src = fopen(filepath, "rb");
+                if (src) {
+                    setvbuf(src, NULL, _IOFBF, BUFFER_SIZE);
 
-    FILE* src = fopen(filepath, "rb");
-    if (!src) {
-        printf("ÎŞ·¨´ò¿ªÎÄ¼ş: %s\n", filepath);
-        continue;
-    }
+                    fseek(src, 0, SEEK_END);
+                    uint32_t file_size = ftell(src);
+                    fseek(src, 0, SEEK_SET);
 
-    setvbuf(src, NULL, _IOFBF, BUFFER_SIZE);
+                    unsigned char* buffer = malloc(file_size);
+                    fread(buffer, 1, file_size, src);
+                    fclose(src);
 
-    fseek(src, 0, SEEK_END);
-    uint32_t file_size = ftell(src);
-    fseek(src, 0, SEEK_SET);
+                    uint32_t original_size = file_size;
+                    if (entry.compressed) {
+                        compress_data(&buffer, &file_size);
+                    }
 
-    unsigned char* buffer = malloc(file_size);
-    fread(buffer, 1, file_size, src);
-    fclose(src);
+                    // éœ€è¦åŒæ­¥çš„å†™æ“ä½œéƒ¨åˆ†
+                    #pragma omp critical
+                    {
+                        // æ›´æ–°ç´¢å¼•è¡¨
+                        entry.uncompressed_size = original_size;
+                        entry.size = file_size;
+                        fseek(dat, hex_len / 2 + (i * 24) + 16, SEEK_SET);
+                        fwrite(&entry.uncompressed_size, 4, 1, dat);
+                        fseek(dat, hex_len / 2 + (i * 24) + 20, SEEK_SET);
+                        fwrite(&entry.size, 4, 1, dat);
 
-    uint32_t original_size = file_size;
-    if (entry.compressed) {
-        compress_data(&buffer, &file_size);
-    }
+                        // å†™å…¥æ–‡ä»¶æ•°æ®
+                        fseek(dat, entry.offset, SEEK_SET);
+                        fwrite(buffer, 1, entry.size, dat);
 
-    // ¸üĞÂË÷Òı±íÖĞµÄ´óĞ¡ĞÅÏ¢
-    entry.uncompressed_size = original_size;  // Ô­Ê¼´óĞ¡
-    entry.size = file_size;                   // Êµ¼Ê´óĞ¡(Ñ¹Ëõ»òÎ´Ñ¹Ëõ)
+                        printf("[%d/%d] æ–‡ä»¶: %s, åŸå§‹å¤§å°: %u, å­˜å‚¨å¤§å°: %u, å‹ç¼©: %s\n",
+       i + 1, entry_count,  // æ˜¾ç¤ºå½“å‰åºå·å’Œæ€»æ•°é‡ï¼ˆi+1è®©åºå·ä»1å¼€å§‹ï¼‰
+       entry.filename, 
+       entry.uncompressed_size, 
+       entry.size,
+       entry.compressed ? "æ˜¯" : "å¦");
 
-    // ½«¸üĞÂºóµÄ´óĞ¡ĞÅÏ¢Ğ´»ØË÷Òı±í
-    fseek(dat, hex_len / 2 + (i * 24) + 16, SEEK_SET); // ¶¨Î»µ½uncompressed_size×Ö¶Î
-    fwrite(&entry.uncompressed_size, 4, 1, dat);
-    fseek(dat, hex_len / 2 + (i * 24) + 20, SEEK_SET); // ¶¨Î»µ½size×Ö¶Î
-    fwrite(&entry.size, 4, 1, dat);
-
-    // Ğ´ÈëÎÄ¼şÊı¾İ
-    fseek(dat, entry.offset, SEEK_SET);
-    fwrite(buffer, 1, entry.size, dat);
-    free(buffer);
-
-    // ´òÓ¡ĞÅÏ¢
-    printf("ÎÄ¼ş: %s, Ô­Ê¼´óĞ¡: %u, ´æ´¢´óĞ¡: %u, Ñ¹Ëõ: %s\n",
-           entry.filename, entry.uncompressed_size, entry.size,
-           entry.compressed ? "ÊÇ" : "·ñ");
+                    }
+                    free(buffer);
+                } else {
+                    #pragma omp critical
+                    printf("æ— æ³•æ‰“å¼€æ–‡ä»¶: %s\n", filepath);
+                }
+            } // end of if (entry.type != 1)
+        } // end of task
+    } // end of for
 }
+#pragma omp taskwait  // ç­‰å¾…æ‰€æœ‰ä»»åŠ¡å®Œæˆ
 
-// 10. ¹Ø±ÕÎÄ¼şºÍÊÍ·ÅÄÚ´æ
+// 10. å…³é—­æ–‡ä»¶å’Œé‡Šæ”¾å†…å­˜ï¼ˆä¿æŒä¸å˜ï¼‰
 fclose(dat);
 cJSON_Delete(root);
-printf("´ò°üÍê³É: %s\n", output_file);
-
+printf("æ‰“åŒ…å®Œæˆ: %s\n", output_file);
 }
+
 
 int main(int argc, char* argv[]) {
     if (argc < 3) {
-        printf("ÓÃ·¨: %s ÊäÈëÄ¿Â¼ Êä³öÎÄ¼ş.dat\n", argv[0]);
+        printf("ç”¨æ³•: %s è¾“å…¥ç›®å½• è¾“å‡ºæ–‡ä»¶.dat\n", argv[0]);
         return 1;
     }
     char index_file[1024];
