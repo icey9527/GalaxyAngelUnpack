@@ -12,3 +12,5 @@ Galaxy Angel PlayStation 2 unpacking scripts, welcome everyone to discuss togeth
 支持 转换.agi纹理文件为png图片
 
 支持 从.msb文件提取wave音频
+
+打包后要用idx.py对游戏总索引文件idx.dat进行同步游戏才能读取
