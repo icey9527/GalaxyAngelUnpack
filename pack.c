@@ -161,6 +161,7 @@ uint32_t parse_hex(const char* str) {
 }
 
 void process_index_entry(cJSON* item, IndexEntry* entry) {
+    memset(entry, 0, sizeof(IndexEntry)); 
     cJSON* type = cJSON_GetArrayItem(item, 0);
     cJSON* sign = cJSON_GetArrayItem(item, 1);
     cJSON* offset = cJSON_GetArrayItem(item, 2);
@@ -238,6 +239,11 @@ void pack(const char* input_dir, const char* output_file, const char* index_file
     // 7. 写入文件名表，并记录 name_offset
     
     uint32_t current_name_offset = 0;
+    
+    fseek(dat, name_table_offset + current_name_offset, SEEK_SET);
+    const char* packname = output_file;
+    fwrite(packname, 1, strlen(packname) + 1, dat);
+    current_name_offset += strlen(packname) + 1;
 
     for (int i = 0; i < entry_count; i++) {
         IndexEntry entry;
@@ -300,9 +306,17 @@ void pack(const char* input_dir, const char* output_file, const char* index_file
                     fclose(src);
 
                     uint32_t original_size = file_size;
+
+                    bool is_precompressed = (file_size >= 8 && memcmp(buffer, "\x20\x33\x3B\x31", 4) == 0);
+
                     if (entry.compressed) {
-                        compress_data(&buffer, &file_size);
+                        if (is_precompressed) {
+                            original_size = *(uint32_t*)(buffer + 4);
+                        } else {
+                            compress_data(&buffer, &file_size);
+                        }
                     }
+
 
                     // 需要同步的写操作部分
                     #pragma omp critical
@@ -311,9 +325,10 @@ void pack(const char* input_dir, const char* output_file, const char* index_file
                         entry.uncompressed_size = original_size;
                         entry.size = file_size;
                         fseek(dat, hex_len / 2 + (i * 24) + 16, SEEK_SET);
+                        unsigned int write_size = entry.compressed ? file_size : 0;
                         fwrite(&entry.uncompressed_size, 4, 1, dat);
                         fseek(dat, hex_len / 2 + (i * 24) + 20, SEEK_SET);
-                        fwrite(&entry.size, 4, 1, dat);
+                        fwrite(&write_size, 4, 1, dat);
 
                         // 写入文件数据
                         fseek(dat, entry.offset, SEEK_SET);
