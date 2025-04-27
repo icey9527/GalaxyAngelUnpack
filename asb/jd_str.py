@@ -1,5 +1,5 @@
 import sys
-import csv
+import json
 
 def extract_shift_jis(buffer, offset):
     end = offset
@@ -39,28 +39,48 @@ def extract_str(input_file: str, code_file: str, out_file: str) -> None:
         if op == "CALL_FUN_00242E50":
             
             if arg == "0x300000013" and len(临时表) >= 4:
-                说话人 = 临时表[len(临时表)-4][2]
+                if 临时表[len(临时表)-4][2] < 1000:
+                    说话人 = str(临时表[len(临时表)-4][2])
+                else:
+                    说话人 = str(临时表[len(临时表)-4][2] & 0xFFFF)
+
+            if arg == "0x300000014" and len(临时表) >= 4:
+                说话人 = f"{临时表[len(临时表)-4][2]}：思考"
+
+            if arg == "0x80000004b":
+                说话人 = "旁白"
             
 
             if arg == "0x100000000":
                 文本指针 = 临时表[len(临时表)-2][2]
                 地址 = 临时表[len(临时表)-2][0]
-                文本记录.append(( f'{hex(int(地址,16)+1)}_{hex(文本指针)}'  , extract_shift_jis(str_data, 文本指针), "",说话人))
+                文本记录.append(( f'{hex(int(地址,16)+1)}_{hex(文本指针)}'  , extract_shift_jis(str_data, 文本指针), 说话人))
 
             if arg == "0x300000002":
                 for count, (addr_, op_, arg_) in enumerate(临时表, start=1):
                     if op_ == "PUSH_IMM32":
-                        文本记录.append(( f'{hex(int(addr_,16)+1)}_{hex(arg_)}' , extract_shift_jis(str_data,arg_),"",f'选项{count}'))
+                        文本记录.append(( f'{hex(int(addr_,16)+1)}_{hex(arg_)}' , extract_shift_jis(str_data,arg_),f'选项{count}'))
 
 
             临时表 = []
     
-    with open(out_file, "w", newline="",encoding='utf-8',errors='ignore') as f:
-        writer = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
-        for record in 文本记录:
-            row = list(record)
-            row.extend([""] * (4 - len(row)))
-            writer.writerow(row)
+    json_data = []
+    for record in 文本记录:
+        # 确保每行至少有2个元素（key和original）
+        if len(record) >= 2:
+            entry = {
+                "key": record[0].strip(),      # 第1列 -> key
+                "original": record[1].strip(),  # 第2列 -> original
+                "translation":"",
+                "stage": 0,
+            }
+            # 如果有第3列且不为空，则作为context
+            if len(record) >= 3 and record[2].strip():
+                entry["context"] = record[2].strip()
+            json_data.append(entry)
+    
+    with open(out_file, "w", encoding='utf-8', errors='ignore') as f:
+        json.dump(json_data, f, ensure_ascii=False, indent=2)
 
 
 import os
@@ -91,7 +111,7 @@ def generate_target_paths(asb_dir, txt_dir, csv_dir):
                 
                 # 构建.txt和.csv路径
                 txt_path = os.path.join(txt_dir, f"{filename}.txt")
-                csv_path = os.path.join(csv_dir, f"{filename}.csv")
+                csv_path = os.path.join(csv_dir, f"{filename}.json")
                 
                 extract_str(asb_path, txt_path, csv_path)
     
