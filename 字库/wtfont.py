@@ -2,6 +2,9 @@ import argparse
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+
 class TileEncoder:
     def __init__(self, endian_big=False, flipx=False, flipy=False):
         self.endian_big = endian_big
@@ -9,50 +12,70 @@ class TileEncoder:
         self.flipy = flipy
 
     def _auto_font_size(self, text, font_path, img_size):
-        """自动调整字体大小以适应目标尺寸"""
-        for size in range(40, 0, -1):
-            font = ImageFont.truetype(font_path, size)
-            bbox = ImageDraw.Draw(Image.new('L', (1,1))).textbbox((0,0), text, font)
-            if (bbox[2]-bbox[0] <= img_size[0] and 
-                bbox[3]-bbox[1] <= img_size[1]):
-                return font
-        return ImageFont.load_default()
-
-    def render_text(self, text, font_path='arial.ttf', img_size=(24,24)):
-        # 创建黑白反色画布（黑底白字）
-        img = Image.new('L', img_size, 0)
-        draw = ImageDraw.Draw(img)
+        """二分查找优化字体匹配算法"""
+        low, high = 1, 100  # 扩大搜索范围
+        best_font = ImageFont.load_default()
         
-        # 自动调整字体大小
-        font = self._auto_font_size(text, font_path, img_size)
+        while low <= high:
+            mid = (low + high) // 2
+            try:
+                font = ImageFont.truetype(font_path, mid)
+            except (IOError, OSError):
+                continue  # 跳过无效字体大小
+                
+            dummy_img = Image.new('L', (1, 1))
+            draw = ImageDraw.Draw(dummy_img)
+            bbox = draw.textbbox((0, 0), text, font)
+            w, h = bbox[2]-bbox[0], bbox[3]-bbox[1]
+            
+            if w <= img_size[0] and h <= img_size[1]:
+                best_font = font
+                low = mid + 1  # 尝试更大的字号
+            else:
+                high = mid - 1
+                
+        return best_font
+
+    def render_text(self, text, font_path='arial.ttf', img_size=(24, 24), scale_factor=10):
+        # 高分辨率渲染参数
+        hr_size = (img_size[0]*scale_factor, img_size[1]*scale_factor)
         
-        # 计算文字位置
-        bbox = draw.textbbox((0,0), text, font)
-        text_w = bbox[2] - bbox[0]
-        text_h = bbox[3] - bbox[1]
-        x = (img_size[0] - text_w)/2 - bbox[0]
-        y = (img_size[1] - text_h)/2 - bbox[1]
-        draw.text((x, y), text, 255, font=font)
+        # 字体自动匹配
+        base_font = self._auto_font_size(text, font_path, img_size)
+        hr_font = ImageFont.truetype(font_path, base_font.size*scale_factor)
 
-        # 转换为numpy数组并量化到4bpp
-        data = np.array(img)
-        data_4bpp = (data // 16).astype(np.uint8)  # 0-15
+        # 高分辨率渲染
+        hr_img = Image.new('L', hr_size, 0)
+        draw = ImageDraw.Draw(hr_img)
+        
+        # 精确计算文字位置
+        bbox = draw.textbbox((0, 0), text, hr_font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+        x = (hr_size[0] - text_width)/2 - bbox[0]
+        y = (hr_size[1] - text_height)/2 - bbox[1]
+        draw.text((x, y), text, 255, font=hr_font)
 
-        # 应用翻转（编码时处理）
+        # 高质量下采样
+        lr_img = hr_img.resize(img_size, Image.Resampling.LANCZOS)
+        
+        # 像素数据处理
+        data = np.array(lr_img)
+        data_4bpp = (data // 16).astype(np.uint8)  # 4bpp量化
+
+        # 应用翻转
         if self.flipx:
             data_4bpp = np.flip(data_4bpp, axis=1)
         if self.flipy:
             data_4bpp = np.flip(data_4bpp, axis=0)
 
-        # 打包像素数据
-        tile_data = bytearray()
-        for row in data_4bpp:
-            for i in range(0, 24, 2):
-                p1, p2 = row[i], row[i+1]
-                byte = (p1 << 4 | p2) if self.endian_big else (p2 << 4 | p1)
-                tile_data.append(byte)
-        
-        return bytes(tile_data)
+        # 向量化数据打包
+        pairs = data_4bpp.reshape(-1, 2)
+        if not self.endian_big:
+            pairs = pairs[:, ::-1]  # 交换字节序
+            
+        packed = (pairs[:, 0] << 4) | pairs[:, 1]
+        return packed.tobytes()
 
 def parse_codetable(filename):
     """更健壮的码表解析"""
