@@ -1,5 +1,89 @@
 import sys
 import json
+import os
+import re
+
+
+
+
+def load_code_table(code_table_path):
+    """
+    Load code table file and create a dictionary
+    - 过滤所有数字（全角/半角）
+    - 过滤所有字母（全角/半角）
+    - 过滤标点符号
+    - 只保留汉字和其他非字母数字字符
+    """
+    code_dict = {}
+    with open(code_table_path, 'r', encoding='utf-16-le') as f:
+        for line in f:
+            line = line.strip()
+            if '=' in line:
+                code, char = line.split('=', 1)
+                code = code.strip().lower()
+                char = char.strip()
+                
+                if char:
+                    cp = ord(char[0])
+                    is_halfwidth_digit = 0x0030 <= cp <= 0x0039
+                    is_halfwidth_alpha = (0x0041 <= cp <= 0x005A) or (0x0061 <= cp <= 0x007A)
+                    is_fullwidth_digit = 0xFF10 <= cp <= 0xFF19
+                    is_fullwidth_alpha = (0xFF21 <= cp <= 0xFF3A) or (0xFF41 <= cp <= 0xFF5A)
+                    
+                    if (not re.search(r'[^\w\s]', char) and
+                        not is_halfwidth_digit and
+                        not is_halfwidth_alpha and
+                        not is_fullwidth_digit and
+                        not is_fullwidth_alpha):
+                        code_dict[char] = code
+    return code_dict
+
+def convert_to_shiftjis(text):
+    """
+    将中文字符转换为Shift-JIS编码表示，包含标点替换和编码验证
+    """
+    replace_rules = {
+        '·': '・',
+        '—': '－',
+        '～': '〜',
+        '“': '「',
+        '”': '」',
+        '：': '：',
+        '；': '；',
+        ' ': '　'
+    }
+
+    text_blocks = text.split('\n')  # 修正换行符分割逻辑
+    converted_blocks = []
+    
+    for block in text_blocks:
+        block_result = []
+        for char in block:
+            replaced_char = replace_rules.get(char, char)
+            try:
+                if replaced_char in code_dict:
+                    code = code_dict[replaced_char]
+                    byte_pair = bytes.fromhex(code)
+                    decoded_char = byte_pair.decode('shift_jis')  # 修正编码名称
+                    block_result.append(decoded_char)
+                else:
+                    replaced_char.encode('shift_jis')
+                    block_result.append(replaced_char)
+            except (UnicodeEncodeError, KeyError):
+                print(f"非法字符: [{replaced_char}] (原始字符: [{char}])，已替换为?")
+                block_result.append('?')
+        converted_blocks.append(''.join(block_result))
+    
+    return '\n'.join(converted_blocks)
+
+
+
+
+
+
+
+
+
 
 def extract_shift_jis(buffer, offset):
     end = offset
@@ -7,118 +91,144 @@ def extract_shift_jis(buffer, offset):
         end += 1
     return buffer[offset:end].decode('shift-jis').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t').replace('↙', '\\n')
 
+def encode_shiftjis(text: str, use_convert: bool = True) -> bytes:
+    if not text:
+        return b'\x00'
+    if use_convert:
+        text = convert_to_shiftjis(text.replace('\\n', '\n').replace('\\r', '\r'))
+    else:
+        text = text.replace('\\n', '\n').replace('\\r', '\r')
+    return text.encode('shift_jis') + b'\x00'
 
-def extract_str(input_file: str, code_file: str, out_file: str) -> None:
 
-    code = []
-    with open(code_file, "r", encoding='utf-8',errors='ignore') as f:
-        for line in f.readlines():
-            addr, rest = line.split(':')
-            parts = rest.strip().split()
-            op = parts[0]
-            arg = parts[1] if len(parts) > 1 else ''
-            code.append((addr, parts[0], parts[1] if len(parts) > 1 else ""))
-        
+def extract_str(input_file: str, json_file: str, out_file: str, 内码变量文本=None) -> None:
+
     with open(input_file, "rb") as f:
+        data = f.read()
         f.seek(0x34)
         str_start = int.from_bytes(f.read(4), 'little')
-        f.seek(str_start)
-        str_data = f.read()
-    
-
-    文本记录 = []
-    说话人 = "未知"
-    临时表 = []
-
-    for addr, op, arg in code:
-        if arg != "":
-            临时表.append((addr, op ,int(arg,16) ))
+        f.seek(0x3C)
+        next_asb = int.from_bytes(f.read(4), 'little')
+        if os.path.getsize(input_file) > next_asb:
+            next_asbname = extract_shift_jis(data,next_asb)
         else:
-            临时表 =  []
+            next_asbname =  next_asb - os.path.getsize(input_file)
+        f.close()
+
+    index_data = bytearray(data[:str_start])
+    str_data = data[str_start:]
+
+    未翻译 = False
+    min_value = len(str_data)
+    result_dict = {}
+
+    with open(json_file, "r", encoding='utf-8') as f:
+        data = json.load(f)
+
+    for item in data:
+        if "key" not in item or "translation" not in item:
+            continue
+
+        hex_str,str_idx = item["key"].split("_", 1)
+        try:
+            num = int(hex_str, 16)
+            str_idx = int(str_idx, 16)
+        except (ValueError, AttributeError):
+            continue
+
+        if str_idx < min_value:
+            min_value = str_idx
+
     
-        if op == "CALL_FUN_00242E50":
-            
-            if arg == "0x300000013" and len(临时表) >= 4:
-                if 临时表[len(临时表)-4][2] < 1000:
-                    说话人 = str(临时表[len(临时表)-4][2])
-                else:
-                    说话人 = str(临时表[len(临时表)-4][2] & 0xFFFF)
-
-            if arg == "0x300000014" and len(临时表) >= 4:
-                说话人 = f"{临时表[len(临时表)-4][2]}：思考"
-
-            if arg == "0x80000004b":
-                说话人 = "旁白"
-            
-
-            if arg == "0x100000000":
-                文本指针 = 临时表[len(临时表)-2][2]
-                地址 = 临时表[len(临时表)-2][0]
-                文本记录.append(( f'{hex(int(地址,16)+1)}_{hex(文本指针)}'  , extract_shift_jis(str_data, 文本指针), 说话人))
-
-            if arg == "0x300000002":
-                for count, (addr_, op_, arg_) in enumerate(临时表, start=1):
-                    if op_ == "PUSH_IMM32":
-                        文本记录.append(( f'{hex(int(addr_,16)+1)}_{hex(arg_)}' , extract_shift_jis(str_data,arg_),f'选项{count}'))
-
-
-            临时表 = []
+        if item["translation"] == '':
+            未翻译 = True
+            key = item["original"]
+        else:
+            key = item["translation"]
+        
+        if key in result_dict:
+            result_dict[key].append(num)
+        else:
+            result_dict[key] = [num]
     
-    json_data = []
-    for record in 文本记录:
-        # 确保每行至少有2个元素（key和original）
-        if len(record) >= 2:
-            entry = {
-                "key": record[0].strip(),      # 第1列 -> key
-                "original": record[1].strip(),  # 第2列 -> original
-                "translation":"",
-                "stage": 0,
-            }
-            # 如果有第3列且不为空，则作为context
-            if len(record) >= 3 and record[2].strip():
-                entry["context"] = record[2].strip()
-            json_data.append(entry)
+    if 未翻译:
+        print(f"{json_file}有未翻译的内容")
+
+    if min_value == len(str_data):
+        print(f"{json_file}未找到最小值")
+
+    str_data_h = str_data[:min_value]
+
+    for key, addres in result_dict.items():
+        for addr in addres:
+            index_data[addr : addr + 4] = len(str_data_h).to_bytes(4, byteorder='little', signed=False)
+        str_data_h += encode_shiftjis(key)
+
+    if 内码变量文本:
+        for value in 内码变量文本.values():
+            wirte_addr = int(value[1],16)
+            index_data[wirte_addr : wirte_addr + 4] = len(str_data_h).to_bytes(4, byteorder='little', signed=False)
+            str_data_h += encode_shiftjis(value[0],False)
     
-    with open(out_file, "w", encoding='utf-8', errors='ignore') as f:
-        json.dump(json_data, f, ensure_ascii=False, indent=2)
-
-
-import os
-
-def generate_target_paths(asb_dir, txt_dir, csv_dir):
-    """
-    根据.asb文件生成对应的.txt和.csv文件路径
+    str_size = len(str_data_h)
+    index_data[0x38 : 0x38 + 4] = str_size.to_bytes(4, byteorder='little', signed=False)
+    if type(next_asbname) == str:
+        index_data[0x3C : 0x3C + 4] = (str_start + str_size).to_bytes(4, byteorder='little', signed=False)
+        str_data_h += encode_shiftjis(next_asbname)
+    else:
+        index_data[0x3C : 0x3C + 4] = (len(index_data + str_data_h)).to_bytes(4, byteorder='little', signed=False)
+    new_data = index_data + str_data_h
+    with open(out_file, 'wb') as f:  # 'wb' 表示二进制写入模式
+        f.write(new_data)
     
-    参数:
-        asb_dir (str): 存放.asb文件的目录
-        txt_dir (str): 存放.txt文件的目录
-        csv_dir (str): 存放.csv文件的目录
     
-    返回:
-        list: 每个元素是 (asb_path, txt_path, csv_path) 的元组
-    """
 
-    os.makedirs(csv_dir, exist_ok=True)
+
+
+
+
+
+
+
+
+def generate_target_paths(asb_dir, json_dir, new_dir):
+    
+    os.makedirs(new_dir, exist_ok=True)
 
     # 遍历.asb文件
-    for root, _, files in os.walk(asb_dir):
+    for root, _, files in os.walk(json_dir):
         for file in files:
-            if file.lower().endswith('.asb'):
-                asb_path = os.path.join(root, file)
+            if file.lower().endswith('.json'):
+                json_path = os.path.join(root, file)
                 
                 # 获取文件名（不带后缀）
                 filename = os.path.splitext(file)[0]
                 
-                # 构建.txt和.csv路径
-                txt_path = os.path.join(txt_dir, f"{filename}.txt")
-                csv_path = os.path.join(csv_dir, f"{filename}.json")
-                
-                extract_str(asb_path, txt_path, csv_path)
+                # 构建.txt和.json路径
+                asb_path = os.path.join(asb_dir, f"{filename}.asb")
+                new_path = os.path.join(new_dir, f"{filename}.asb")
+                if filename in 内码变量:
+                    extract_str(asb_path, json_path, new_path, 内码变量[filename])
+                else:
+                    extract_str(asb_path, json_path, new_path)
     
 
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
-        print("用法:  <asb目录> <txt目录> <输出目录>")
+        print("用法:  <asb目录> <json目录> <输出目录>")
         sys.exit(1)
+
+    input_file = sys.argv[1]
+    output_file = sys.argv[2]
+    code_table_path = "TargetTblFile.tbl"
+    with open("内码变量.json", "r", encoding='utf-8') as f:
+        内码变量 = json.load(f)
+    
+    try:
+        code_dict = load_code_table(code_table_path)
+    except Exception as e:
+        print(f"加载码表失败: {e}")
+        sys.exit(1)
+
     generate_target_paths(sys.argv[1], sys.argv[2], sys.argv[3])
