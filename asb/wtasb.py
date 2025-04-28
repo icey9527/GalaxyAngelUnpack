@@ -70,8 +70,8 @@ def convert_to_shiftjis(text):
                     replaced_char.encode('shift_jis')
                     block_result.append(replaced_char)
             except (UnicodeEncodeError, KeyError):
-                print(f"非法字符: [{replaced_char}] (原始字符: [{char}])，已替换为空格")
-                block_result.append(' ')
+                print(f"非法字符: [{replaced_char}] (原始字符: [{char}])，已替换为?")
+                block_result.append('?')
         converted_blocks.append(''.join(block_result))
     
     return '\n'.join(converted_blocks)
@@ -91,21 +91,28 @@ def extract_shift_jis(buffer, offset):
         end += 1
     return buffer[offset:end].decode('shift-jis').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t').replace('↙', '\\n')
 
-def encode_shiftjis(text: str) -> bytes:
+def encode_shiftjis(text: str, use_convert: bool = True) -> bytes:
     if not text:
         return b'\x00'
-    text = convert_to_shiftjis(text.replace('\\n', '\n').replace('\\r', '\r'))
-    return text.encode('shift_jis', errors='ignore') + b'\x00'
+    if use_convert:
+        text = convert_to_shiftjis(text.replace('\\n', '\n').replace('\\r', '\r'))
+    else:
+        text = text.replace('\\n', '\n').replace('\\r', '\r')
+    return text.encode('shift_jis') + b'\x00'
 
 
-def extract_str(input_file: str, json_file: str, out_file: str) -> None:
+def extract_str(input_file: str, json_file: str, out_file: str, 内码变量文本=None) -> None:
 
     with open(input_file, "rb") as f:
         data = f.read()
         f.seek(0x34)
         str_start = int.from_bytes(f.read(4), 'little')
         f.seek(0x3C)
-        next_asb = extract_shift_jis(data,int.from_bytes(f.read(4), 'little'))
+        next_asb = int.from_bytes(f.read(4), 'little')
+        if os.path.getsize(input_file) > next_asb:
+            next_asbname = extract_shift_jis(data,next_asb)
+        else:
+            next_asbname =  next_asb - os.path.getsize(input_file)
         f.close()
 
     index_data = bytearray(data[:str_start])
@@ -151,17 +158,25 @@ def extract_str(input_file: str, json_file: str, out_file: str) -> None:
         print(f"{json_file}未找到最小值")
 
     str_data_h = str_data[:min_value]
-    
+
     for key, addres in result_dict.items():
         for addr in addres:
             index_data[addr : addr + 4] = len(str_data_h).to_bytes(4, byteorder='little', signed=False)
-            str_data_h += encode_shiftjis(key)
+        str_data_h += encode_shiftjis(key)
+
+    if 内码变量文本:
+        for value in 内码变量文本.values():
+            wirte_addr = int(value[1],16)
+            index_data[wirte_addr : wirte_addr + 4] = len(str_data_h).to_bytes(4, byteorder='little', signed=False)
+            str_data_h += encode_shiftjis(value[0],False)
     
-    next_asb_idx = len(str_data_h)
-    index_data[0x38 : 0x38 + 4] = next_asb_idx.to_bytes(4, byteorder='little', signed=False)
-    index_data[0x3C : 0x3C + 4] = (str_start + next_asb_idx).to_bytes(4, byteorder='little', signed=False)
-    str_data_h += encode_shiftjis(next_asb)
-    
+    str_size = len(str_data_h)
+    index_data[0x38 : 0x38 + 4] = str_size.to_bytes(4, byteorder='little', signed=False)
+    if type(next_asbname) == str:
+        index_data[0x3C : 0x3C + 4] = (str_start + str_size).to_bytes(4, byteorder='little', signed=False)
+        str_data_h += encode_shiftjis(next_asbname)
+    else:
+        index_data[0x3C : 0x3C + 4] = (len(index_data + str_data_h)).to_bytes(4, byteorder='little', signed=False)
     new_data = index_data + str_data_h
     with open(out_file, 'wb') as f:  # 'wb' 表示二进制写入模式
         f.write(new_data)
@@ -181,19 +196,21 @@ def generate_target_paths(asb_dir, json_dir, new_dir):
     os.makedirs(new_dir, exist_ok=True)
 
     # 遍历.asb文件
-    for root, _, files in os.walk(asb_dir):
+    for root, _, files in os.walk(json_dir):
         for file in files:
-            if file.lower().endswith('.asb'):
-                asb_path = os.path.join(root, file)
+            if file.lower().endswith('.json'):
+                json_path = os.path.join(root, file)
                 
                 # 获取文件名（不带后缀）
                 filename = os.path.splitext(file)[0]
                 
                 # 构建.txt和.json路径
-                json_path = os.path.join(json_dir, f"{filename}.csv.json")
+                asb_path = os.path.join(asb_dir, f"{filename}.asb")
                 new_path = os.path.join(new_dir, f"{filename}.asb")
-                
-                extract_str(asb_path, json_path, new_path)
+                if filename in 内码变量:
+                    extract_str(asb_path, json_path, new_path, 内码变量[filename])
+                else:
+                    extract_str(asb_path, json_path, new_path)
     
 
 
@@ -205,6 +222,8 @@ if __name__ == "__main__":
     input_file = sys.argv[1]
     output_file = sys.argv[2]
     code_table_path = "TargetTblFile.tbl"
+    with open("内码变量.json", "r", encoding='utf-8') as f:
+        内码变量 = json.load(f)
     
     try:
         code_dict = load_code_table(code_table_path)
