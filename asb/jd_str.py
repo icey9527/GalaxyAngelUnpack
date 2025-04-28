@@ -164,7 +164,7 @@ def generate_target_paths(asb_dir, txt_dir, csv_dir):
                     漏网鱼[filename] = (漏网之鱼)
 
 
-    with open("漏网之鱼.json", "w+", encoding='utf-8', errors='ignore') as f:
+    with open("内码变量.json", "w+", encoding='utf-8', errors='ignore') as f:
         json.dump(漏网鱼, f, ensure_ascii=False, indent=2)
     
 
