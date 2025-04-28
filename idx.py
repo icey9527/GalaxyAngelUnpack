@@ -36,8 +36,7 @@ def dat_up(dat_filename):
         start = read_int(f,0xC) #索引起始地址
         name_start = read_int(f,0x20) #文件名起始地址
 
-
-        if read_int(f, 0x14) != 1:
+        if read_int(f, 0x14) != 0:
             IdxQ = read_int(f,0x10) #总索引数量
             f.seek(start)
             for i in range(IdxQ):
@@ -54,8 +53,24 @@ def dat_up(dat_filename):
                 if type == 0:
                     filename = read_string(f, name_start + name_offset)
                     dat_dict[filename] =offset, UncompressedSize, size
+            return False,dat_dict
+        
+        else:
+            sub_index_pointers = []
+            IdxQ = read_int(f, start) #总索引数量
+            for i in range(IdxQ):
+                pointer = read_int(f, start + i*4 + 4)
+                sub_index_pointers.append(pointer + start)
 
-        return True,dat_dict
+            for pointer in sub_index_pointers:
+                name_offset = read_int(f, pointer)
+                fst_offset = read_int(f, pointer + 2 * 4)
+                fst_size = read_int(f, pointer + 3 * 4)
+                fst_sub = read_int(f, pointer + 4 * 4)
+                name = read_string(f, name_start + name_offset)
+                dat_dict[name] = fst_offset, fst_size, fst_sub
+            return True,dat_dict
+            
 
 def idx_up(dat_filename, idx_filename):
     
@@ -78,11 +93,26 @@ def idx_up(dat_filename, idx_filename):
         if dat_sign is None:
             print("idx中没有此dat文件")
             return
-        
+              
         if dat_type:
+            sub_index_pointers = []
+            start = read_int(f, 0x18)
+            IdxQ = read_int(f, start) #总索引数量
+            for i in range(IdxQ):
+                pointer = read_int(f, start + i*4 + 4)
+                sub_index_pointers.append(pointer + start)
+
+            for pointer in sub_index_pointers:
+                    
+                    name_offset = read_int(f, pointer)
+                    filename = read_string(f, name_start + name_offset)
+
+                    if filename in dat_dict:
+                        write_int(f, dat_dict[filename][0], pointer + 2 * 4)
+                        write_int(f, dat_dict[filename][1], pointer + 3 * 4)
+                        write_int(f, dat_dict[filename][2], pointer + 4 * 4)
+        else:
             entries = []
-
-
             IdxQ = read_int(f,0x10) #总索引数量
             start = read_int(f,0xC)
             f.seek(start)
@@ -98,15 +128,13 @@ def idx_up(dat_filename, idx_filename):
                 if sign == dat_sign and type == 0:
                     entries.append((address, type, name_offset, sign, offset,  UncompressedSize ,size))
             
-        f.seek(0)
-        uu = 0
-        for address, type, name_offset, sign, offset,  UncompressedSize ,size in entries:
-            filename = read_string(f, name_start + name_offset)
-            if filename in dat_dict:
-                uu += 1
-                write_int(f, dat_dict[filename][0], address + 3 * 4)
-                write_int(f, dat_dict[filename][1], address + 4 * 4)
-                write_int(f, dat_dict[filename][2], address + 5 * 4)
+            f.seek(0)
+            for address, type, name_offset, sign, offset,  UncompressedSize ,size in entries:
+                filename = read_string(f, name_start + name_offset)
+                if filename in dat_dict:
+                    write_int(f, dat_dict[filename][0], address + 3 * 4)
+                    write_int(f, dat_dict[filename][1], address + 4 * 4)
+                    write_int(f, dat_dict[filename][2], address + 5 * 4)
         
 
 
