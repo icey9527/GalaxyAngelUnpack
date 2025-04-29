@@ -51,12 +51,13 @@ def find_match(window: SlidingWindow, input_data: bytearray, cursor: int, end: i
     return (max_len, distance) if max_len >= MIN_MATCH_LEN else (0, 0)
 
 def compress(input_data: bytearray) -> Tuple[bytearray, int]:
+    input_size = len(input_data)
 
     if input_data[:4] == b'\x20\x33\x3B\x31' or input_data[:4] == b'\x20\x33\x3B\x30':
         
-        return input_data, int.from_bytes(input_data[4:8], 'little'), len(input_data)
+        return input_data, int.from_bytes(input_data[4:8], 'little'), input_size
     
-    input_size = len(input_data)
+    
     # Estimate max output size (input_size * 1.5 + 8)
     max_output_size = input_size + (input_size // 2) + 8
     output = bytearray(max_output_size)
@@ -127,7 +128,10 @@ def compress(input_data: bytearray) -> Tuple[bytearray, int]:
         output_pos += len(data_buffer)
     
     # Trim the output buffer to actual size
-    return output[:output_pos], output_pos, input_size
+    print(output_pos, input_size)
+    with open('binary_data.bin', 'wb') as f:  # 注意'wb'模式
+        f.write(output[:output_pos])
+    return output, output_pos, input_size
 
 
 def read_int(f, address=None):
@@ -229,64 +233,9 @@ def pack(input_dir, packname):
             
             addr += 1
 
-    
-
-
-    
     with open(packname, 'wb') as f:
         f.write(data)
 
-
-
-
-
-
-    return
-    for content in idx['idx']:
-        data.extend(packname.encode()+b'\x00')
-        wirte_add = idx_start
-        for type, sign, offset, filename, compstate in content:
-            write_int(data, int(type, 16), wirte_add)
-            write_int(data, len(data) - filename_start, wirte_add + 4)
-            write_int(data, int(sign, 16), wirte_add + 4 * 2)
-            write_int(data, int(offset, 16), wirte_add + 4 * 3)
-            data.extend(filename.encode()+b'\x00')
-            wirte_add += 6 * 4
-
-        wirte_add = idx_start + 3 * 4
-        
-        for type, sign, offset, filename, compstate in content:
-            if compstate and type == 0:
-                with open(filename, 'rb') as f:
-                        Udata = f.read()
-                result = Udata, len(Udata), len(Udata)
-            else:
-                print(filename)
-                #result =  compress2(os.path.join(input_dir, filename)) #压缩文件
-                    
-            alignments = [0x1000, 0x800]
-            current_alignment_index = 0
-            if result:
-                alignment = alignments[current_alignment_index]
-    
-    # 计算需要填充的字节数
-                padding_size = (alignment - (len(data) % alignment)) % alignment
-    
-    # 如果padding_size为0，说明已经是对齐的，不需要填充
-                if padding_size > 0:
-                    data.extend(b'\x00' * padding_size)
-                compresseddata, compresssize, UncompressedSize = result
-                if compresseddata != None:
-                    write_int(data, int(offset, 16), wirte_add)
-                    write_int(data, UncompressedSize, wirte_add + 4)
-                    write_int(data, compresssize, wirte_add + 4 * 2)
-                    data.extend(compresseddata+b'\x00')
-                wirte_add += 6 * 4
-
-    #len(content)
-    with open(packname, 'wb') as f:
-            f.write(data)
-    print('打包完毕 >> ' + packname)
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
