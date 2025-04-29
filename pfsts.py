@@ -128,10 +128,8 @@ def compress(input_data: bytearray) -> Tuple[bytearray, int]:
         output_pos += len(data_buffer)
     
     # Trim the output buffer to actual size
-    print(output_pos, input_size)
-    with open('binary_data.bin', 'wb') as f:  # 注意'wb'模式
-        f.write(output[:output_pos])
-    return output, output_pos, input_size
+    
+    return output, input_size, output_pos
 
 
 def read_int(f, address=None):
@@ -168,7 +166,7 @@ def packfsts(dir, list):
     addr = 16
     for filename, Ofilename in list:
         addr += 16
-        #print(os.path.join(dir,filename))
+        print(os.path.join(dir,filename))
         compress_data, UncompressSize, size = compress(open(os.path.join(dir,filename), 'rb').read())
         write_int(data,len(data),addr + 4)
         write_int(data,UncompressSize,addr + 8)
