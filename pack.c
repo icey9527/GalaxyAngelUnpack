@@ -7,7 +7,7 @@
 #include <omp.h>
 
 #define XOR_KEY 0x72
-#define BUFFER_SIZE (16 * 1024 * 1024) // 1MB缓冲区
+#define BUFFER_SIZE (16 * 1024 * 1024 * 10) // 1MB缓冲区
 // compress
 #define WINDOW_SIZE 4096
 #define MAX_MATCH_LEN 18
@@ -274,7 +274,7 @@ void pack(const char* input_dir, const char* output_file, const char* index_file
         // name_offset 已经在步骤7写入
         fseek(dat, 4, SEEK_CUR); // 跳过已写入的 name_offset
         fwrite(&entry.sign, 4, 1, dat);
-        fwrite(&entry.offset, 4, 1, dat);
+        fseek(dat, 4, SEEK_CUR); 
         fwrite(&entry.uncompressed_size, 4, 1, dat);
         fwrite(&entry.size, 4, 1, dat);
     }
@@ -331,8 +331,14 @@ void pack(const char* input_dir, const char* output_file, const char* index_file
                         fwrite(&write_size, 4, 1, dat);
 
                         // 写入文件数据
-                        fseek(dat, entry.offset, SEEK_SET);
-                        fwrite(buffer, 1, entry.size, dat);
+                        fseek(dat, 0, SEEK_END);
+                        uint32_t current_offset = (ftell(dat) + 15) & ~0x0F;  // 16字节对齐计算
+                        fwrite(buffer, 1, entry.size, dat);   // 追加写入数据
+
+                        // 更新索引表中的offset
+                        fseek(dat, hex_len / 2 + (i * 24) + 12, SEEK_SET); // 定位到offset字段
+                        fwrite(&current_offset, 4, 1, dat);         // 写入实际偏移量
+                        fseek(dat, 0, SEEK_END);              // 回到文件末尾继续写
 
                         printf("[%d/%d] 文件: %s, 原始大小: %u, 存储大小: %u, 压缩: %s\n",
        i + 1, entry_count,  // 显示当前序号和总数量（i+1让序号从1开始）
