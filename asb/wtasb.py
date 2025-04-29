@@ -64,10 +64,10 @@ def convert_to_shiftjis(text):
                 if replaced_char in code_dict:
                     code = code_dict[replaced_char]
                     byte_pair = bytes.fromhex(code)
-                    decoded_char = byte_pair.decode('shift_jis')  # 修正编码名称
+                    decoded_char = byte_pair.decode('CP932')  # 修正编码名称
                     block_result.append(decoded_char)
                 else:
-                    replaced_char.encode('shift_jis')
+                    replaced_char.encode('CP932')
                     block_result.append(replaced_char)
             except (UnicodeEncodeError, KeyError):
                 print(f"非法字符: [{replaced_char}] (原始字符: [{char}])，已替换为?")
@@ -85,7 +85,7 @@ def convert_to_shiftjis(text):
 
 
 
-def extract_shift_jis(buffer, offset):
+def extract_CP932(buffer, offset):
     end = offset
     while end < len(buffer) and buffer[end] != 0:
         end += 1
@@ -98,7 +98,7 @@ def encode_shiftjis(text: str, use_convert: bool = True) -> bytes:
         text = convert_to_shiftjis(text.replace('\\n', '\n').replace('\\r', '\r'))
     else:
         text = text.replace('\\n', '\n').replace('\\r', '\r')
-    return text.encode('shift_jis') + b'\x00'
+    return text.encode('CP932') + b'\x00'
 
 
 def extract_str(input_file: str, json_file: str, out_file: str, 内码变量文本=None) -> None:
@@ -110,7 +110,7 @@ def extract_str(input_file: str, json_file: str, out_file: str, 内码变量文�
         f.seek(0x3C)
         next_asb = int.from_bytes(f.read(4), 'little')
         if os.path.getsize(input_file) > next_asb:
-            next_asbname = extract_shift_jis(data,next_asb)
+            next_asbname = extract_CP932(data,next_asb)
         else:
             next_asbname =  next_asb - os.path.getsize(input_file)
         f.close()
