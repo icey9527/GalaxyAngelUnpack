@@ -333,6 +333,7 @@ void pack(const char* input_dir, const char* output_file, const char* index_file
                         // 写入文件数据
                         fseek(dat, 0, SEEK_END);
                         uint32_t current_offset = (ftell(dat) + 15) & ~0x0F;  // 16字节对齐计算
+                        fseek(dat, current_offset, SEEK_SET); 
                         fwrite(buffer, 1, entry.size, dat);   // 追加写入数据
 
                         // 更新索引表中的offset
