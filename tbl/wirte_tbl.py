@@ -147,7 +147,7 @@ def apply_translations(original_tbl_lines, translations):
                 new_value = translation_map[current_section][key]
                 # Recreate the line with the new value and preserve formatting
                 indent = re.match(r'^\s*', original_line).group(0)
-                new_line = f"{indent}{key} = {new_value}"
+                new_line = f"{indent}{key} ={new_value}"
                 if comment_part:
                     new_line += f" {comment_part}"
                 if semicolon_part:
