@@ -219,7 +219,7 @@ def pack(input_dir, packname):
     addr = 0
     for key, value in list.items():
         if isinstance(value, dict):
-            data += b'\x00' * ((2048 - (len(data) % 2048)) % 2048)
+            #data += b'\x00' * ((2048 - (len(data) % 2048)) % 2048)
             idx_addr = 0x54 + 4  * addr
             idx_addr2 =  0x54 + 4  * IdxQ + 4 * addr * 5
             write_int(data, len(data), idx_addr2 + 8)
