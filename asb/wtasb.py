@@ -110,7 +110,8 @@ def extract_str(input_file: str, json_file: str, out_file: str, 内码变量文�
         f.seek(0x3C)
         next_asb = int.from_bytes(f.read(4), 'little')
         if os.path.getsize(input_file) > next_asb:
-            next_asbname = extract_CP932(data,next_asb)
+            f.seek(next_asb)
+            next_asbname = f.read()
         else:
             next_asbname =  next_asb - os.path.getsize(input_file)
         f.close()
@@ -172,9 +173,10 @@ def extract_str(input_file: str, json_file: str, out_file: str, 内码变量文�
     
     str_size = len(str_data_h)
     index_data[0x38 : 0x38 + 4] = str_size.to_bytes(4, byteorder='little', signed=False)
-    if type(next_asbname) == str:
+
+    if type(next_asbname) == bytes:
         index_data[0x3C : 0x3C + 4] = (str_start + str_size).to_bytes(4, byteorder='little', signed=False)
-        str_data_h += encode_shiftjis(next_asbname)
+        str_data_h += next_asbname
     else:
         index_data[0x3C : 0x3C + 4] = (len(index_data + str_data_h)).to_bytes(4, byteorder='little', signed=False)
     new_data = index_data + str_data_h
