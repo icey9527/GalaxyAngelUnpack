@@ -107,7 +107,7 @@ def process_fsts(fst_data, output_dir):
         return
 
     entries = []
-    rebuild = {'start': [], 'idx': []}
+    rebuild = {}
     
     IdxQ = read_int(f)
     start = read_int(f)
@@ -122,17 +122,23 @@ def process_fsts(fst_data, output_dir):
         entries.append((name_offset, offset, uncompressSize, size))
 
     for name_offset, offset, uncompressSize, size in entries:
-        f.seek(name_offset + name_start)
-        buffer = f.read(50)
-        null_index = buffer.find(b'\x00')
-        filename = buffer[:null_index].decode('utf-8', errors='ignore') if null_index != -1 else buffer.decode('utf-8', errors='ignore')
-        filename = os.path.basename(filename)
+        name = read_string(f, name_start + name_offset)
+        #filename = os.path.basename(name)
+        filename = name.replace('/', '\\')
+        print(name, os.path.dirname(filename))
+        os.makedirs(output_dir +"/"+  os.path.dirname(filename), exist_ok=True)
+        rebuild[filename] = name
         
         f.seek(offset)
         data = f.read(size)
+        #compstate = False
+        #if filename.endswith(('.tbl', '.dat', '.txt')):
+        #    compstate = uncompress(data, output_dir, filename)
         compstate = uncompress(data, output_dir, filename)
         if not compstate:
-            write_output(output_dir, filename, data)
+                write_output(output_dir, filename, data)
+        
+    return rebuild
 
 def process_pidx0(filename, output_dir):
     with open(filename, 'rb') as f:
@@ -149,26 +155,33 @@ def process_pidx0(filename, output_dir):
         IdxQ = read_int(f, 0x10)
         name_start = read_int(f, 0x20)
         sub_index_count = read_int(f, 0x50)
+        f.seek(0)
+        list["start"] = f.read(start).hex()
 
         sub_index_pointers = []
-        sub_index_start = 0x54
+        sub_index_start = start + 4
         for i in range(sub_index_count):
             pointer = read_int(f, sub_index_start + i*4)
             sub_index_pointers.append(pointer + start)
 
         for pointer in sub_index_pointers:
             name_offset = read_int(f, pointer)
+            占位 = read_int(f, pointer + 4)
             fst_offset = read_int(f, pointer + 8)
             fst_size = read_int(f, pointer + 12)
+            num = read_int(f, pointer + 16)
             
             name = read_string(f, name_start + name_offset)
-            safe_name = "".join(c for c in name if c.isprintable()).strip()
+            print(name)
             
             f.seek(fst_offset)
             fst_data = f.read(fst_size)
             
-            sub_output = os.path.join(output_dir, safe_name)
-            process_fsts(fst_data, sub_output)
+            sub_output = os.path.join(output_dir, name)
+            list[name] = process_fsts(fst_data, sub_output)
+
+    with open(os.path.join(output_dir,'list.json'), 'w', encoding='utf-8') as f:
+        json.dump(list, f, indent=4)
 
 def main(input_path, output_dir):
     if not os.path.exists(input_path):
@@ -187,4 +200,5 @@ if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("用法: python script.py <输入文件/目录> <输出目录>")
     else:
+        list = {}
         main(sys.argv[1], sys.argv[2])
