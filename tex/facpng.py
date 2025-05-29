@@ -29,8 +29,7 @@ def read_binary_fac_image_8bpp(data):
             g = palette_data[pos + 1]
             b = palette_data[pos + 2]
             a = palette_data[pos + 3]
-            if a == 128:
-                a = 255
+            a = min(a * 2 - 1, 255)
             
             original_palette.append((r, g, b, a))
         
