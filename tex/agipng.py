@@ -17,49 +17,40 @@ def read_header_info(data):
     return width, height
 
 def read_binary_image_4bpp(data):
-    try:
-        width, height = read_header_info(data)
-        
-        # 像素数据偏移 (假设从0x50开始，与之前一致)
-        pixel_data_offset = 0x50
-        pixel_data = data[pixel_data_offset:]
-        
-        # 计算所需字节数 (4bpp = 0.5字节/像素)
-        required_bytes = (width * height + 1) // 2
-        if len(pixel_data) < required_bytes:
-            raise ValueError("像素数据不足")
 
-        # 创建灰度图像
-        img = Image.new('L', (width, height))
-        pixels = img.load()
+    width, height = read_header_info(data)
+    palette_offset = struct.unpack('<I', data[0x1C:0x20])[0]
 
-        # 严格按C代码的4bpp解码逻辑
-        for y in range(height):
-            for x in range(width):
-                # 计算线性位置
-                pos = y * width + x
-                byte_pos = pos // 2
+    pixel_data_offset = 48
+    pixel_data = data[pixel_data_offset:]
+    
+    # 调色板起始位置 (RGBA格式，16个颜色)
+    palette = []
+    for i in range(16):
+        offset = palette_offset + i*4  # 假设调色板紧接在尺寸后
+        r, g, b, a = data[offset], data[offset+1], data[offset+2], data[offset+3]
+        a = min(a * 2 - 1, 255)
+        palette.append((r, g, b, a))
+    
+    
+    # 创建RGBA图像
+    img = Image.new('RGBA', (width, height))
+    pixels = img.load()
+    
+    # 解码4bpp数据
+    for y in range(height):
+        for x in range(width):
+            pos = y * width + x
+            byte_pos = pos // 2
+            if byte_pos >= len(pixel_data):
+                pixels[x, y] = (0, 0, 0, 0)  # 越界填充透明黑
+                continue
                 
-                if byte_pos >= len(pixel_data):
-                    pixels[x, y] = 0
-                    continue
-                
-                # 获取字节
-                byte = pixel_data[byte_pos]
-                
-                # 4bpp解码 (完全对应C代码逻辑)
-                if pos % 2 == 0:  # 偶数位置 - 低4位
-                    value = byte & 0x0F
-                else:              # 奇数位置 - 高4位
-                    value = (byte >> 4) & 0x0F
-                
-                # 映射到0-255灰度 (保持与C代码一致的行为)
-                pixels[x, y] = value * 17  # 17 = 255/15
-
-        return img
-
-    except Exception as e:
-        raise ValueError(f"4bpp解码失败: {str(e)}")
+            byte = pixel_data[byte_pos]
+            index = (byte >> (4 * (pos % 2))) & 0x0F
+            pixels[x, y] = palette[index]
+    
+    return img
 
 
 def read_binary_image_8bpp(data):
@@ -77,7 +68,8 @@ def read_binary_image_8bpp(data):
             g = palette_data[pos + 1]
             b = palette_data[pos + 2]
             a = palette_data[pos + 3]
-            original_palette.append((r, g, b))
+            a = min(a * 2 - 1, 255)
+            original_palette.append((r, g, b, a))
         
         # 重新排列调色板：
         # 1. 将256色分成8个大组（每个大组32色=4个小组×8色）
@@ -102,16 +94,12 @@ def read_binary_image_8bpp(data):
         expected_size = width * height
         if len(pixel_data) < expected_size:
             raise ValueError("像素数据不足，无法填充指定的宽度和高度")
-
-        img = Image.new('P', (width, height))
-
-        pil_palette = []
-        for color in palette:
-            pil_palette.extend(color)
         
-        img.putpalette(pil_palette)
+        rgba_pixels = [palette[pixel] for pixel in pixel_data[:expected_size]]
 
-        img.frombytes(pixel_data[:expected_size])
+        img = Image.new('RGBA', (width, height))
+
+        img.putdata(rgba_pixels)
         
         return img
         
@@ -197,7 +185,7 @@ def read_binary_image_24bpp(data):
         print(f"处理24bpp文件时出错: {e}")
         return None
 
-def process_tex_file(input_path, output_folder):
+def process_tex_file(input_path, output_path):
     try:
         with open(input_path, 'rb') as file:
             data = file.read()
@@ -215,21 +203,20 @@ def process_tex_file(input_path, output_folder):
                 image = read_binary_image_16bpp(data)
             elif bpp_flag == "00300100":
                 pass
-            #    image = read_binary_image_24bpp(data)
-            elif bpp_flag == '10001000':
+                image = read_binary_image_24bpp(data)
+            elif bpp_flag in ['10001000']:
                 pass
                 image = read_binary_image_8bpp(data)
-            elif bpp_flag == '00001400':
+            elif bpp_flag in ['00001400',"08000200"]:
                 pass
-            #    image = read_binary_image_4bpp(data)
+                image = read_binary_image_4bpp(data)
             else:
                 print(f"文件 {input_path} 有未知的色深标志: {bpp_flag}")
                 return False
             
             if image:
                 # 创建输出文件名（保持原文件名，只修改扩展名为.png）
-                output_filename = Path(input_path).stem + ".png"
-                output_path = os.path.join(output_folder, output_filename)
+                
                 image.save(output_path)
                 print(f"成功转换: {input_path} -> {output_path}")
                 return True
@@ -261,11 +248,16 @@ if __name__ == "__main__":
     success_files = 0
     
     # 遍历输入文件夹中的所有.tex文件
-    for filename in os.listdir(input_folder):
-        if filename.lower().endswith('.agi'):
-            input_path = os.path.join(input_folder, filename)
-            if process_tex_file(input_path, output_folder):
-                success_files += 1
-            total_files += 1
+    for root, dirs, files in os.walk(input_folder):
+        for filename in files:
+            if filename.lower().endswith('.agi'):
+                input_path = os.path.join(root, filename)
+                rel_path = os.path.relpath(input_path, input_folder)
+                output_rel_path = os.path.splitext(rel_path)[0] + ".png"
+                output_path = os.path.join(output_folder, output_rel_path)
+                os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                if process_tex_file(input_path, output_path):
+                    success_files += 1
+                total_files += 1
     
     print(f"\n处理完成: 共 {total_files} 个文件, 成功 {success_files} 个, 失败 {total_files - success_files} 个")
