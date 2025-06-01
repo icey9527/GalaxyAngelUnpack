@@ -40,7 +40,7 @@ def load_code_table(code_table_path):
 
 def convert_to_shiftjis(text):
     """
-    将中文字符转换为Shift-JIS编码表示，包含标点替换和编码验证
+    将中文字符转换为cp932编码表示，包含标点替换和编码验证
     """
     replace_rules = {
         '·': '・',
@@ -79,7 +79,10 @@ def convert_to_shiftjis(text):
 
 
 
-
+def read_int(f, address=None):
+    if address is not None:
+        f.seek(address)
+    return int.from_bytes(f.read(4), 'little')
 
 
 
@@ -89,7 +92,7 @@ def extract_CP932(buffer, offset):
     end = offset
     while end < len(buffer) and buffer[end] != 0:
         end += 1
-    return buffer[offset:end].decode('shift-jis').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t').replace('↙', '\\n')
+    return buffer[offset:end].decode('cp932').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t').replace('↙', '\\n')
 
 def encode_shiftjis(text: str, use_convert: bool = True) -> bytes:
     if not text:
@@ -100,27 +103,49 @@ def encode_shiftjis(text: str, use_convert: bool = True) -> bytes:
         text = text.replace('\\n', '\n').replace('\\r', '\r')
     return text.encode('CP932') + b'\x00'
 
+def extract_shift_jis(buffer, offset):
+    end = offset
+    while end < len(buffer) and buffer[end] != 0:
+        end += 1
+    return buffer[offset:end].decode('shift-jis').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t').replace('↙', '\\n')
+
+
 
 def extract_str(input_file: str, json_file: str, out_file: str, 内码变量文本=None) -> None:
 
     with open(input_file, "rb") as f:
         data = f.read()
-        f.seek(0x34)
-        str_start = int.from_bytes(f.read(4), 'little')
-        f.seek(0x3C)
-        next_asb = int.from_bytes(f.read(4), 'little')
+        str_start = read_int(f, 0x34)
+        next_asb = read_int(f, 0x3c)
         if os.path.getsize(input_file) > next_asb:
             f.seek(next_asb)
             next_asbname = f.read()
         else:
             next_asbname =  next_asb - os.path.getsize(input_file)
+
+        idx1 = read_int(f, 0x28)
+        idx1_s = read_int(f, 0x24)
+        str_data = data[str_start:]
+        min_value = 0
+
+        for i in range(idx1):
+            idx1_ = read_int(f, idx1_s)
+            #print(hex(idx1_), extract_shift_jis(str_data, idx1_))
+            if idx1_ > min_value:
+                min_value = idx1_
+
+            idx1_s += 0x14
+
+
+
+
         f.close()
 
     index_data = bytearray(data[:str_start])
-    str_data = data[str_start:]
+    
 
     未翻译 = False
-    min_value = len(str_data)
+    
     result_dict = {}
 
     with open(json_file, "r", encoding='utf-8') as f:
@@ -137,8 +162,7 @@ def extract_str(input_file: str, json_file: str, out_file: str, 内码变量文�
         except (ValueError, AttributeError):
             continue
 
-        if str_idx < min_value:
-            min_value = str_idx
+
 
     
         if item["translation"] == '':
@@ -155,8 +179,10 @@ def extract_str(input_file: str, json_file: str, out_file: str, 内码变量文�
     if 未翻译:
         print(f"{json_file}有未翻译的内容")
 
-    if min_value == len(str_data):
+    if min_value == 0:
         print(f"{json_file}未找到最小值")
+
+    #print(hex(min_value))
 
     str_data_h = str_data[:min_value]
 
