@@ -126,13 +126,20 @@ def extract_str(input_file: str, json_file: str, out_file: str, 内码变量文�
         idx1 = read_int(f, 0x28)
         idx1_s = read_int(f, 0x24)
         str_data = data[str_start:]
-        min_value = 0
+        min_value = len(str_data)
+        result_dict = {}
 
         for i in range(idx1):
             idx1_ = read_int(f, idx1_s)
             #print(hex(idx1_), extract_shift_jis(str_data, idx1_))
-            if idx1_ > min_value:
-                min_value = idx1_
+            if 0 < idx1_:
+                if idx1_ < min_value:
+                    min_value = idx1_
+                变量str = extract_shift_jis(str_data, idx1_)
+                if 变量str in result_dict:
+                    result_dict[变量str].append(idx1_s)
+                else:
+                    result_dict[变量str] = [idx1_s]
 
             idx1_s += 0x14
 
@@ -146,7 +153,15 @@ def extract_str(input_file: str, json_file: str, out_file: str, 内码变量文�
 
     未翻译 = False
     
-    result_dict = {}
+    
+
+    if 内码变量文本:
+        for v in 内码变量文本.values():
+            if v[0] in result_dict:
+                result_dict[v[0]].append(int(v[1],16))
+            else:
+                result_dict[v[0]] = [int(v[1],16)]
+                
 
     with open(json_file, "r", encoding='utf-8') as f:
         data = json.load(f)
@@ -178,24 +193,26 @@ def extract_str(input_file: str, json_file: str, out_file: str, 内码变量文�
     
     if 未翻译:
         print(f"{json_file}有未翻译的内容")
-
-    if min_value == 0:
+    
+    if min_value == len(str_data) :
         print(f"{json_file}未找到最小值")
 
     #print(hex(min_value))
 
     str_data_h = str_data[:min_value]
 
+
+
+
+
+
+
     for key, addres in result_dict.items():
         for addr in addres:
             index_data[addr : addr + 4] = len(str_data_h).to_bytes(4, byteorder='little', signed=False)
         str_data_h += encode_shiftjis(key)
 
-    if 内码变量文本:
-        for value in 内码变量文本.values():
-            wirte_addr = int(value[1],16)
-            index_data[wirte_addr : wirte_addr + 4] = len(str_data_h).to_bytes(4, byteorder='little', signed=False)
-            str_data_h += encode_shiftjis(value[0],False)
+
     
     str_size = len(str_data_h)
     index_data[0x38 : 0x38 + 4] = str_size.to_bytes(4, byteorder='little', signed=False)
