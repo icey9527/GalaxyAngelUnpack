@@ -274,7 +274,12 @@ void pack(const char* input_dir, const char* output_file, const char* index_file
         // name_offset 已经在步骤7写入
         fseek(dat, 4, SEEK_CUR); // 跳过已写入的 name_offset
         fwrite(&entry.sign, 4, 1, dat);
-        fseek(dat, 4, SEEK_CUR); 
+        if (entry.type != 1) { 
+            fseek(dat, 4, SEEK_CUR);
+        }
+        else {
+            fwrite(&entry.offset, 4, 1, dat);
+        }    
         fwrite(&entry.uncompressed_size, 4, 1, dat);
         fwrite(&entry.size, 4, 1, dat);
     }
