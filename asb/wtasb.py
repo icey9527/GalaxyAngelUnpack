@@ -50,7 +50,6 @@ def convert_to_shiftjis(text):
         '”': '」',
         '：': '：',
         '；': '；',
-        ' ': '　'
     }
 
     text_blocks = text.split('\n')  # 修正换行符分割逻辑
