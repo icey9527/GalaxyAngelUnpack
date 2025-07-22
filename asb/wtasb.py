@@ -50,6 +50,7 @@ def convert_to_shiftjis(text):
         '”': '」',
         '：': '：',
         '；': '；',
+
     }
 
     text_blocks = text.split('\n')  # 修正换行符分割逻辑
@@ -106,7 +107,7 @@ def extract_shift_jis(buffer, offset):
     end = offset
     while end < len(buffer) and buffer[end] != 0:
         end += 1
-    return buffer[offset:end].decode('shift-jis').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t').replace('↙', '\\n')
+    return buffer[offset:end].decode('cp932').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t').replace('↙', '\\n')
 
 
 
