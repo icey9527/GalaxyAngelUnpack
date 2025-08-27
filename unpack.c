@@ -10,7 +10,7 @@
 #define mkdir(path, mode) _mkdir(path)
 #endif
 
-// ¶ÁÈ¡4×Ö½ÚÕûÊı£¨Ğ¡¶ËĞò£©
+// è¯»å–4å­—èŠ‚æ•´æ•°ï¼ˆå°ç«¯åºï¼‰
 uint32_t read_int(FILE* f, long address) {
     uint32_t value = 0;
     if (address >= 0) {
@@ -20,41 +20,41 @@ uint32_t read_int(FILE* f, long address) {
     return value;
 }
 
-// ½âÑ¹Ëõº¯Êı
+// è§£å‹ç¼©å‡½æ•°
 bool uncompress(const unsigned char* data, size_t data_size, const char* output_file) {
-    // ¶ÁÈ¡Ô­Ê¼´óĞ¡
-    uint32_t param_2 = *(uint32_t*)(data + 4);  // ´ÓÎÄ¼şÖĞ¶ÁÈ¡ÆÚ´ıµÄÔ­Ê¼´óĞ¡
+    // è¯»å–åŸå§‹å¤§å°
+    uint32_t param_2 = *(uint32_t*)(data + 4);  // ä»æ–‡ä»¶ä¸­è¯»å–æœŸå¾…çš„åŸå§‹å¤§å°
     
-    // ³õÊ¼»¯±äÁ¿
+    // åˆå§‹åŒ–å˜é‡
     size_t param_4 = data_size;
     int iVar4 = 8;
     int iVar11 = 0;
     unsigned int uVar7 = 0xfee;
     unsigned int uVar10 = 0;
-    unsigned char abStack_1020[0x1000];  // »º³åÇø
-    unsigned char bVar1 = 0;  // Ìí¼ÓÕâ¸ö±äÁ¿ÉùÃ÷
-    unsigned char bVar2 = 0;  // Îª°²È«Æğ¼ûÒ²Ìí¼ÓÕâ¸ö±äÁ¿ÉùÃ÷
+    unsigned char abStack_1020[0x1000];  // ç¼“å†²åŒº
+    unsigned char bVar1 = 0;  // æ·»åŠ è¿™ä¸ªå˜é‡å£°æ˜
+    unsigned char bVar2 = 0;  // ä¸ºå®‰å…¨èµ·è§ä¹Ÿæ·»åŠ è¿™ä¸ªå˜é‡å£°æ˜
     memset(abStack_1020, 0, sizeof(abStack_1020));
     
-    // Êä³öÊı¾İ´æ´¢
+    // è¾“å‡ºæ•°æ®å­˜å‚¨
     unsigned char* uncompress_data = (unsigned char*)malloc(param_2);
     if (uncompress_data == NULL) {
-        printf("ÄÚ´æ·ÖÅäÊ§°Ü\n");
+        printf("å†…å­˜åˆ†é…å¤±è´¥\n");
         return false;
     }
     
-    // ¼ì²éÎÄ¼şÍ·£¬¾ö¶¨½âÑ¹Ëõ·½Ê½
+    // æ£€æŸ¥æ–‡ä»¶å¤´ï¼Œå†³å®šè§£å‹ç¼©æ–¹å¼
     bool compstate = false;
     
     if (data_size > 3 && data[1] == '3' && data[2] == ';' && data[3] == '1') {
-        // Ê¹ÓÃ¿ØÖÆ×Ö½ÚµÄ½âÑ¹ËõÂß¼­
+        // ä½¿ç”¨æ§åˆ¶å­—èŠ‚çš„è§£å‹ç¼©é€»è¾‘
         while (true) {
             while (true) {
                 uVar10 >>= 1;
                 unsigned int uVar6 = uVar10;
                 if ((uVar10 & 0x100) == 0) {
                     if (param_4 <= iVar4) {
-                        // Ğ´³ö½á¹û
+                        // å†™å‡ºç»“æœ
                         FILE* f = fopen(output_file, "wb");
                         if (f) {
                             fwrite(uncompress_data, 1, iVar11, f);
@@ -90,12 +90,12 @@ bool uncompress(const unsigned char* data, size_t data_size, const char* output_
                 unsigned char bVar2 = data[iVar9];
                 iVar9 = 0;
                 
-                // Ñ­»·½âÃÜ
+                // å¾ªç¯è§£å¯†
                 while (iVar9 <= ((bVar2 ^ 0x72) & 0xf) + 2) {
                     uVar6 = (bVar1 ^ 0x72 | ((bVar2 ^ 0x72) & 0xf0) << 4) + iVar9;
                     iVar9++;
                     unsigned char bVar3 = abStack_1020[uVar6 & 0xfff];
-                    if (iVar11 >= param_2) {  // Ê¹ÓÃparam_2×÷Îª½âÃÜÊı¾İµÄ³¤¶ÈÏŞÖÆ
+                    if (iVar11 >= param_2) {  // ä½¿ç”¨param_2ä½œä¸ºè§£å¯†æ•°æ®çš„é•¿åº¦é™åˆ¶
                         break;
                     }
                     uncompress_data[iVar11] = bVar3;
@@ -105,7 +105,7 @@ bool uncompress(const unsigned char* data, size_t data_size, const char* output_
                 }
             }
             
-            // ¼ÌĞø´¦ÀíÊ£ÓàµÄÊı¾İ
+            // ç»§ç»­å¤„ç†å‰©ä½™çš„æ•°æ®
             if (param_4 <= iVar4) {
                 break;
             }
@@ -113,7 +113,7 @@ bool uncompress(const unsigned char* data, size_t data_size, const char* output_
             bVar1 = data[iVar4];
             iVar4++;
             unsigned char uncompress_byte = bVar1 ^ 0x72;
-            if (iVar11 >= param_2) {  // Ê¹ÓÃparam_2×÷Îª½âÃÜÊı¾İµÄ³¤¶ÈÏŞÖÆ
+            if (iVar11 >= param_2) {  // ä½¿ç”¨param_2ä½œä¸ºè§£å¯†æ•°æ®çš„é•¿åº¦é™åˆ¶
                 break;
             }
             uncompress_data[iVar11] = uncompress_byte;
@@ -123,7 +123,7 @@ bool uncompress(const unsigned char* data, size_t data_size, const char* output_
         }
     } 
     else if (data_size > 3 && data[1] == '3' && data[2] == ';' && data[3] == '0') {
-        // ¹Ì¶¨8×Ö½Ú´¦ÀíµÄ½âÑ¹ËõÂß¼­
+        // å›ºå®š8å­—èŠ‚å¤„ç†çš„è§£å‹ç¼©é€»è¾‘
         if (8 < param_4) {
             for (int i = 8; i < param_4; i++) {
                 unsigned char uncompress_byte = data[i] ^ 0x72;
@@ -137,10 +137,10 @@ bool uncompress(const unsigned char* data, size_t data_size, const char* output_
     } 
     else {
         free(uncompress_data);
-        return false; // ÈôÎÄ¼şÍ·²»Æ¥Åä£¬¾Í·µ»Ø
+        return false; // è‹¥æ–‡ä»¶å¤´ä¸åŒ¹é…ï¼Œå°±è¿”å›
     }
     
-    // Ğ´³ö×îÖÕµÄ½âÃÜ½á¹û
+    // å†™å‡ºæœ€ç»ˆçš„è§£å¯†ç»“æœ
     FILE* f = fopen(output_file, "wb");
     if (f) {
         fwrite(uncompress_data, 1, iVar11, f);
@@ -150,7 +150,7 @@ bool uncompress(const unsigned char* data, size_t data_size, const char* output_
     return true;
 }
 
-// È·±£Ä¿Â¼´æÔÚ
+// ç¡®ä¿ç›®å½•å­˜åœ¨
 void ensure_directory_exists(const char* path) {
     char temp[1024];
     char* p = NULL;
@@ -159,12 +159,12 @@ void ensure_directory_exists(const char* path) {
     strncpy(temp, path, sizeof(temp));
     len = strlen(temp);
     
-    // É¾³ıÂ·¾¶Ä©Î²µÄĞ±¸Ü
+    // åˆ é™¤è·¯å¾„æœ«å°¾çš„æ–œæ 
     if (temp[len - 1] == '/' || temp[len - 1] == '\\') {
         temp[len - 1] = 0;
     }
     
-    // Öğ¼¶´´½¨Ä¿Â¼
+    // é€çº§åˆ›å»ºç›®å½•
     for (p = temp + 1; *p; p++) {
         if (*p == '/' || *p == '\\') {
             *p = 0;
@@ -176,83 +176,83 @@ void ensure_directory_exists(const char* path) {
     mkdir(temp, 0755);
 }
 
-// ½â°üÖ÷º¯Êı
+// è§£åŒ…ä¸»å‡½æ•°
 void unpack(const char* filename, const char* output_dir) {
     FILE* f = fopen(filename, "rb");
     if (!f) {
-        printf("ÎŞ·¨´ò¿ªÎÄ¼ş: %s\n", filename);
+        printf("æ— æ³•æ‰“å¼€æ–‡ä»¶: %s\n", filename);
         return;
     }
     
-    // ¼ì²éÎÄ¼şÍ·
+    // æ£€æŸ¥æ–‡ä»¶å¤´
     char magic[6] = {0};
     fread(magic, 1, 5, f);
     if (strcmp(magic, "PIDX0") != 0) {
-        printf("ÎÄ¼şÍ·²»·û\n");
+        printf("æ–‡ä»¶å¤´ä¸ç¬¦\n");
         fclose(f);
         return;
     }
     
     fseek(f, 0x8, SEEK_SET);
     if (read_int(f, -1) != 1) {
-        printf("ÓÖµ÷Æ¤ÁË¹ş£¿¿É²»ĞË¶ÔidxÓÃÕâ¸ö°¡\n");
+        printf("åˆè°ƒçš®äº†å“ˆï¼Ÿå¯ä¸å…´å¯¹idxç”¨è¿™ä¸ªå•Š\n");
         fclose(f);
         return;
     }
     
-    // ´´½¨Êä³öÄ¿Â¼
+    // åˆ›å»ºè¾“å‡ºç›®å½•
     ensure_directory_exists(output_dir);
     
-    // ´´½¨ÈÕÖ¾ÎÄ¼ş
+    // åˆ›å»ºæ—¥å¿—æ–‡ä»¶
     FILE* log_file = fopen("unpack.log", "w");
     if (!log_file) {
-        printf("ÎŞ·¨´´½¨ÈÕÖ¾ÎÄ¼ş\n");
+        printf("æ— æ³•åˆ›å»ºæ—¥å¿—æ–‡ä»¶\n");
         fclose(f);
         return;
     }
     
-    fprintf(log_file, "ÎÄ¼ş¼Ğ£º\n");
+    fprintf(log_file, "æ–‡ä»¶å¤¹ï¼š\n");
     
-    uint32_t start = read_int(f, 0xC);     // Ë÷ÒıÆğÊ¼µØÖ·
-    uint32_t IdxQ = read_int(f, 0x10);     // ×ÜË÷ÒıÊıÁ¿
-    uint32_t name_start = read_int(f, 0x20); // ÎÄ¼şÃûÆğÊ¼µØÖ·
+    uint32_t start = read_int(f, 0xC);     // ç´¢å¼•èµ·å§‹åœ°å€
+    uint32_t IdxQ = read_int(f, 0x10);     // æ€»ç´¢å¼•æ•°é‡
+    uint32_t name_start = read_int(f, 0x20); // æ–‡ä»¶åèµ·å§‹åœ°å€
     
-    fprintf(log_file, "Ë÷ÒıÆğÊ¼µØÖ·£º0x%x\n", start);
-    fprintf(log_file, "×ÜË÷ÒıÊıÁ¿£º%u\n", IdxQ);
-    fprintf(log_file, "ÎÄ¼şÃûÆğÊ¼µØÖ·£º0x%x\n\n", name_start);
+    fprintf(log_file, "ç´¢å¼•èµ·å§‹åœ°å€ï¼š0x%x\n", start);
+    fprintf(log_file, "æ€»ç´¢å¼•æ•°é‡ï¼š%u\n", IdxQ);
+    fprintf(log_file, "æ–‡ä»¶åèµ·å§‹åœ°å€ï¼š0x%x\n\n", name_start);
     
-    // ´´½¨JSONÄ¿Â¼
+    // åˆ›å»ºJSONç›®å½•
     char json_dir[1024];
     sprintf(json_dir, "%s/json", output_dir);
     ensure_directory_exists(json_dir);
     
-    // ´´½¨JSONÎÄ¼ş
+    // åˆ›å»ºJSONæ–‡ä»¶
     char json_file[1024];
     sprintf(json_file, "%s/idx.json", json_dir);
     FILE* json_f = fopen(json_file, "w");
     if (!json_f) {
-        printf("ÎŞ·¨´´½¨JSONÎÄ¼ş\n");
+        printf("æ— æ³•åˆ›å»ºJSONæ–‡ä»¶\n");
         fclose(f);
         fclose(log_file);
         return;
     }
     
-    // Ğ´ÈëJSONÍ·²¿
+    // å†™å…¥JSONå¤´éƒ¨
     fprintf(json_f, "{\n    \"start\": [\n        \"");
     
-    // ±£´æstart²¿·ÖµÄÊ®Áù½øÖÆÊı¾İ
+    // ä¿å­˜startéƒ¨åˆ†çš„åå…­è¿›åˆ¶æ•°æ®
     unsigned char* start_data = (unsigned char*)malloc(start);
     fseek(f, 0, SEEK_SET);
     fread(start_data, 1, start, f);
     
-    // ½«¶ş½øÖÆÊı¾İ×ªÎªÊ®Áù½øÖÆ×Ö·û´®
+    // å°†äºŒè¿›åˆ¶æ•°æ®è½¬ä¸ºåå…­è¿›åˆ¶å­—ç¬¦ä¸²
     for (uint32_t i = 0; i < start; i++) {
         fprintf(json_f, "%02x", start_data[i]);
     }
     fprintf(json_f, "\"\n    ],\n    \"idx\": [\n");
     free(start_data);
     
-    // ¶ÁÈ¡ÌõÄ¿ĞÅÏ¢
+    // è¯»å–æ¡ç›®ä¿¡æ¯
     typedef struct {
         int index;
         uint32_t type;
@@ -266,7 +266,7 @@ void unpack(const char* filename, const char* output_dir) {
     
     Entry* entries = (Entry*)malloc(sizeof(Entry) * IdxQ);
     if (!entries) {
-        printf("ÄÚ´æ·ÖÅäÊ§°Ü\n");
+        printf("å†…å­˜åˆ†é…å¤±è´¥\n");
         fclose(f);
         fclose(log_file);
         fclose(json_f);
@@ -287,50 +287,50 @@ void unpack(const char* filename, const char* output_dir) {
     int count_file = 0;
     int count_folder = 0;
     
-    // ´¦ÀíÃ¿¸öÌõÄ¿
+    // å¤„ç†æ¯ä¸ªæ¡ç›®
     for (uint32_t i = 0; i < IdxQ; i++) {
-        // ¶ÁÈ¡ÎÄ¼şÃû
-        fseek(f, entries[i].name_offset + name_start, SEEK_SET);
-        char buffer[256] = {0};
-        fread(buffer, 1, 255, f);
+    // è¯»å–æ–‡ä»¶å
+    fseek(f, entries[i].name_offset + name_start, SEEK_SET);
+    memset(entries[i].filename, 0, sizeof(entries[i].filename));
+
+    // è¯»å–å­—ç¬¦ä¸²ç›´åˆ°nullç»“æŸç¬¦
+    int k = 0;
+    char c;
+    while (k < 255 && fread(&c, 1, 1, f) == 1 && c != '\0') {
+        entries[i].filename[k++] = c;
+    }
+    entries[i].filename[k] = '\0';
         
-        // ²éÕÒ×Ö·û´®½áÊø·û
-        int null_index = 0;
-        while (buffer[null_index] && null_index < 255) {
-            null_index++;
-        }
-        strncpy(entries[i].filename, buffer, null_index);
-        
-        // ¶ÁÈ¡Êı¾İ
+        // è¯»å–æ•°æ®
         fseek(f, entries[i].offset, SEEK_SET);
         unsigned char* data = (unsigned char*)malloc(entries[i].size);
         if (!data) {
-            printf("ÄÚ´æ·ÖÅäÊ§°Ü\n");
+            printf("å†…å­˜åˆ†é…å¤±è´¥\n");
             continue;
         }
         fread(data, 1, entries[i].size, f);
         
-        // JSON·Ö¸ô·û
+        // JSONåˆ†éš”ç¬¦
         if (i > 0) {
             fprintf(json_f, ",\n");
         }
         
         bool compstate = false;
         if (entries[i].type == 1) {
-            // ÊÇÄ¿Â¼
+            // æ˜¯ç›®å½•
             count_folder++;
             fprintf(log_file, "%d: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x %s\n", 
                 count_folder, entries[i].type, entries[i].name_offset, 
                 entries[i].sign, entries[i].offset, entries[i].uncompressed_size,
                 entries[i].size, entries[i].filename);
-            printf("%d: %s (Ä¿Â¼)\n", count_folder, entries[i].filename);
+            printf("%d: %s (ç›®å½•)\n", count_folder, entries[i].filename);
         } else {
-            // ÊÇÎÄ¼ş
+            // æ˜¯æ–‡ä»¶
             count_file++;
             char output_path[1024];
             sprintf(output_path, "%s/%s", output_dir, entries[i].filename);
             
-            // È·±£Êä³öÎÄ¼şµÄÄ¿Â¼´æÔÚ
+            // ç¡®ä¿è¾“å‡ºæ–‡ä»¶çš„ç›®å½•å­˜åœ¨
             char dir_path[1024];
             strcpy(dir_path, output_path);
             char* last_slash = strrchr(dir_path, '/');
@@ -339,10 +339,10 @@ void unpack(const char* filename, const char* output_dir) {
                 ensure_directory_exists(dir_path);
             }
             
-            // ³¢ÊÔ½âÑ¹Ëõ
+            // å°è¯•è§£å‹ç¼©
             compstate = uncompress(data, entries[i].size, output_path);
             if (!compstate) {
-                // Èç¹û½âÑ¹Ê§°Ü£¬Ö±½ÓĞ´ÈëÔ­Ê¼Êı¾İ
+                // å¦‚æœè§£å‹å¤±è´¥ï¼Œç›´æ¥å†™å…¥åŸå§‹æ•°æ®
                 FILE* out_f = fopen(output_path, "wb");
                 if (out_f) {
                     fseek(f, entries[i].offset, SEEK_SET);
@@ -363,7 +363,7 @@ void unpack(const char* filename, const char* output_dir) {
             printf("%d: %s\n", count_file, entries[i].filename);
         }
         
-        // Ğ´ÈëJSON
+        // å†™å…¥JSON
         fprintf(json_f, "        [\"0x%x\", \"0x%x\", \"0x%x\", \"%s\", %s]", 
             entries[i].type, entries[i].sign, entries[i].offset, 
             entries[i].filename, compstate ? "true" : "false");
@@ -371,31 +371,31 @@ void unpack(const char* filename, const char* output_dir) {
         free(data);
     }
     
-    // Íê³ÉJSONÎÄ¼ş
+    // å®ŒæˆJSONæ–‡ä»¶
     fprintf(json_f, "\n    ]\n}");
     
-    // ÊÍ·Å×ÊÔ´
+    // é‡Šæ”¾èµ„æº
     free(entries);
     fclose(f);
     fclose(log_file);
     fclose(json_f);
     
-    printf("½â°üÍê³É£¡\n");
+    printf("è§£åŒ…å®Œæˆï¼\n");
 }
 
 int main(int argc, char* argv[]) {
     if (argc < 3) {
-        printf("ÓÃ·¨£º\n½â°ü£ºÄ¿±êÎÄ¼ş Êä³öÄ¿Â¼\n");
+        printf("ç”¨æ³•ï¼š\nè§£åŒ…ï¼šç›®æ ‡æ–‡ä»¶ è¾“å‡ºç›®å½•\n");
         return 1;
     }
     
-    // ¼ì²éÎÄ¼şÀ©Õ¹Ãû
+    // æ£€æŸ¥æ–‡ä»¶æ‰©å±•å
     char* ext = strrchr(argv[1], '.');
     if (ext && strcmp(ext, ".dat") == 0) {
-        printf("Ä¿±êÎÄ¼ş: %s\n", argv[1]);
+        printf("ç›®æ ‡æ–‡ä»¶: %s\n", argv[1]);
         unpack(argv[1], argv[2]);
     } else {
-        printf("Ö»Ö§³Ö½â°ü.datÎÄ¼ş\n");
+        printf("åªæ”¯æŒè§£åŒ….datæ–‡ä»¶\n");
     }
     
     return 0;
