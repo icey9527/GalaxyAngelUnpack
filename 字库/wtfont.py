@@ -2,9 +2,6 @@ import argparse
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont
-
 class TileEncoder:
     def __init__(self, endian_big=False, flipx=False, flipy=False):
         self.endian_big = endian_big
@@ -50,10 +47,23 @@ class TileEncoder:
         
         # 精确计算文字位置
         bbox = draw.textbbox((0, 0), text, hr_font)
-        text_width = bbox[2] - bbox[0]
-        text_height = bbox[3] - bbox[1]
-        x = (hr_size[0] - text_width)/2 - bbox[0]
-        y = (hr_size[1] - text_height)/2 - bbox[1]
+        # 获取字符边界框
+        bbox = draw.textbbox((0, 0), text, font=hr_font)
+        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        
+        # 水平居中
+        x = (hr_size[0] - w) // 2 - bbox[0]
+        
+        # 垂直对齐：区分标点符号和普通字符
+        if text in '，。！？；：""''（）【】《》、.,!?;:\'"()[]<>/':
+            # 标点符号：底部对齐，留出下方空间
+            y = hr_size[1] - h - bbox[1] - 2 * scale_factor
+        elif text in '一丶乀乁':
+            # 横线类字符：稍微下移，避免太高
+            y = (hr_size[1] - h) // 2 - bbox[1] + 2 * scale_factor        
+        else:
+            # 普通字符：垂直居中
+            y = (hr_size[1] - h) // 2 - bbox[1]
         draw.text((x, y), text, 255, font=hr_font)
 
         # 高质量下采样
