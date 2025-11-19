@@ -1,3 +1,17 @@
+2025.11.19
+今天是一个悲伤的日子，因为我发现了这个提取工具
+辛辛苦苦研究了半年，结果发现有更简单的捷径
+为何？我当时没有早点发现它😭😭
+不过我的工具可以逆向生成
+如果你只想提取图像，建议使用那个更方便的工具
+
+November 19, 2025
+Today is a sad day, as I just discovered this extraction tool.
+I spent six months strictly researching this, only to find there was a simpler shortcut all along.
+Why? Why didn't I find this sooner? 😭😭
+However, my tool supports reverse generation (repacking).
+If you are only looking to extract images, I suggest using that tool as it is more convenient.
+[PS2-Visual-Novel-Tool](https://github.com/punk7890/PS2-Visual-Novel-Tool){:target="_blank"}
 # GalaxyAngel PlayStation 2 Unpack
 银河天使ps2解包相关脚本，欢迎各位一起讨论。
 
