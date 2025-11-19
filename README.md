@@ -11,7 +11,7 @@ I spent six months strictly researching this, only to find there was a simpler s
 Why? Why didn't I find this sooner? 😭😭
 However, my tool supports reverse generation (repacking).
 If you are only looking to extract images, I suggest using that tool as it is more convenient.
-[PS2-Visual-Novel-Tool](https://github.com/punk7890/PS2-Visual-Novel-Tool){:target="_blank"}
+[PS2-Visual-Novel-Tool](https://github.com/punk7890/PS2-Visual-Novel-Tool)
 # GalaxyAngel PlayStation 2 Unpack
 银河天使ps2解包相关脚本，欢迎各位一起讨论。
 
