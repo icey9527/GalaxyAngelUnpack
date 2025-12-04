@@ -13,6 +13,8 @@ However, my tool supports reverse generation (repacking).
 If you are only looking to extract images, I suggest using that tool as it is more convenient.
 
 [PS2-Visual-Novel-Tool](https://github.com/punk7890/PS2-Visual-Novel-Tool)
+
+或者也可以试试GA专用的提取器[VerViewer](https://github.com/icey9527/Verviewer)
 # GalaxyAngel PlayStation 2 Unpack
 银河天使ps2解包相关脚本，欢迎各位一起讨论。
 
