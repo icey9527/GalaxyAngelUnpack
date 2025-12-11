@@ -17,7 +17,7 @@ typedef struct {
     uint32_t size;
 } FSTSEntry;
 
-// ¶ÁÈ¡4×Ö½ÚÕûÊı£¨Ğ¡¶ËĞò£©
+// è¯»å–4å­—èŠ‚æ•´æ•°ï¼ˆå°ç«¯åºï¼‰
 uint32_t read_int(FILE* f, long address) {
     uint32_t value = 0;
     if (address >= 0) {
@@ -27,41 +27,41 @@ uint32_t read_int(FILE* f, long address) {
     return value;
 }
 
-// ½âÑ¹Ëõº¯Êı
+// è§£å‹ç¼©å‡½æ•°
 bool uncompress(const unsigned char* data, size_t data_size, const char* output_file) {
-    // ¶ÁÈ¡Ô­Ê¼´óĞ¡
-    uint32_t param_2 = *(uint32_t*)(data + 4);  // ´ÓÎÄ¼şÖĞ¶ÁÈ¡ÆÚ´ıµÄÔ­Ê¼´óĞ¡
+    // è¯»å–åŸå§‹å¤§å°
+    uint32_t param_2 = *(uint32_t*)(data + 4);  // ä»æ–‡ä»¶ä¸­è¯»å–æœŸå¾…çš„åŸå§‹å¤§å°
     
-    // ³õÊ¼»¯±äÁ¿
+    // åˆå§‹åŒ–å˜é‡
     size_t param_4 = data_size;
     int iVar4 = 8;
     int iVar11 = 0;
     unsigned int uVar7 = 0xfee;
     unsigned int uVar10 = 0;
-    unsigned char abStack_1020[0x1000];  // »º³åÇø
-    unsigned char bVar1 = 0;  // Ìí¼ÓÕâ¸ö±äÁ¿ÉùÃ÷
-    unsigned char bVar2 = 0;  // Îª°²È«Æğ¼ûÒ²Ìí¼ÓÕâ¸ö±äÁ¿ÉùÃ÷
+    unsigned char abStack_1020[0x1000];  // ç¼“å†²åŒº
+    unsigned char bVar1 = 0;  // æ·»åŠ è¿™ä¸ªå˜é‡å£°æ˜
+    unsigned char bVar2 = 0;  // ä¸ºå®‰å…¨èµ·è§ä¹Ÿæ·»åŠ è¿™ä¸ªå˜é‡å£°æ˜
     memset(abStack_1020, 0, sizeof(abStack_1020));
     
-    // Êä³öÊı¾İ´æ´¢
+    // è¾“å‡ºæ•°æ®å­˜å‚¨
     unsigned char* uncompress_data = (unsigned char*)malloc(param_2);
     if (uncompress_data == NULL) {
-        printf("ÄÚ´æ·ÖÅäÊ§°Ü\n");
+        printf("å†…å­˜åˆ†é…å¤±è´¥\n");
         return false;
     }
     
-    // ¼ì²éÎÄ¼şÍ·£¬¾ö¶¨½âÑ¹Ëõ·½Ê½
+    // æ£€æŸ¥æ–‡ä»¶å¤´ï¼Œå†³å®šè§£å‹ç¼©æ–¹å¼
     bool compstate = false;
     
     if (data_size > 3 && data[1] == '3' && data[2] == ';' && data[3] == '1') {
-        // Ê¹ÓÃ¿ØÖÆ×Ö½ÚµÄ½âÑ¹ËõÂß¼­
+        // ä½¿ç”¨æ§åˆ¶å­—èŠ‚çš„è§£å‹ç¼©é€»è¾‘
         while (true) {
             while (true) {
                 uVar10 >>= 1;
                 unsigned int uVar6 = uVar10;
                 if ((uVar10 & 0x100) == 0) {
                     if (param_4 <= iVar4) {
-                        // Ğ´³ö½á¹û
+                        // å†™å‡ºç»“æœ
                         FILE* f = fopen(output_file, "wb");
                         if (f) {
                             fwrite(uncompress_data, 1, iVar11, f);
@@ -97,12 +97,12 @@ bool uncompress(const unsigned char* data, size_t data_size, const char* output_
                 unsigned char bVar2 = data[iVar9];
                 iVar9 = 0;
                 
-                // Ñ­»·½âÃÜ
+                // å¾ªç¯è§£å¯†
                 while (iVar9 <= ((bVar2 ^ 0x72) & 0xf) + 2) {
                     uVar6 = (bVar1 ^ 0x72 | ((bVar2 ^ 0x72) & 0xf0) << 4) + iVar9;
                     iVar9++;
                     unsigned char bVar3 = abStack_1020[uVar6 & 0xfff];
-                    if (iVar11 >= param_2) {  // Ê¹ÓÃparam_2×÷Îª½âÃÜÊı¾İµÄ³¤¶ÈÏŞÖÆ
+                    if (iVar11 >= param_2) {  // ä½¿ç”¨param_2ä½œä¸ºè§£å¯†æ•°æ®çš„é•¿åº¦é™åˆ¶
                         break;
                     }
                     uncompress_data[iVar11] = bVar3;
@@ -112,7 +112,7 @@ bool uncompress(const unsigned char* data, size_t data_size, const char* output_
                 }
             }
             
-            // ¼ÌĞø´¦ÀíÊ£ÓàµÄÊı¾İ
+            // ç»§ç»­å¤„ç†å‰©ä½™çš„æ•°æ®
             if (param_4 <= iVar4) {
                 break;
             }
@@ -120,7 +120,7 @@ bool uncompress(const unsigned char* data, size_t data_size, const char* output_
             bVar1 = data[iVar4];
             iVar4++;
             unsigned char uncompress_byte = bVar1 ^ 0x72;
-            if (iVar11 >= param_2) {  // Ê¹ÓÃparam_2×÷Îª½âÃÜÊı¾İµÄ³¤¶ÈÏŞÖÆ
+            if (iVar11 >= param_2) {  // ä½¿ç”¨param_2ä½œä¸ºè§£å¯†æ•°æ®çš„é•¿åº¦é™åˆ¶
                 break;
             }
             uncompress_data[iVar11] = uncompress_byte;
@@ -130,7 +130,7 @@ bool uncompress(const unsigned char* data, size_t data_size, const char* output_
         }
     } 
     else if (data_size > 3 && data[1] == '3' && data[2] == ';' && data[3] == '0') {
-        // ¹Ì¶¨8×Ö½Ú´¦ÀíµÄ½âÑ¹ËõÂß¼­
+        // å›ºå®š8å­—èŠ‚å¤„ç†çš„è§£å‹ç¼©é€»è¾‘
         if (8 < param_4) {
             for (int i = 8; i < param_4; i++) {
                 unsigned char uncompress_byte = data[i] ^ 0x72;
@@ -144,10 +144,10 @@ bool uncompress(const unsigned char* data, size_t data_size, const char* output_
     } 
     else {
         free(uncompress_data);
-        return false; // ÈôÎÄ¼şÍ·²»Æ¥Åä£¬¾Í·µ»Ø
+        return false; // è‹¥æ–‡ä»¶å¤´ä¸åŒ¹é…ï¼Œå°±è¿”å›
     }
     
-    // Ğ´³ö×îÖÕµÄ½âÃÜ½á¹û
+    // å†™å‡ºæœ€ç»ˆçš„è§£å¯†ç»“æœ
     FILE* f = fopen(output_file, "wb");
     if (f) {
         fwrite(uncompress_data, 1, iVar11, f);
@@ -157,7 +157,7 @@ bool uncompress(const unsigned char* data, size_t data_size, const char* output_
     return true;
 }
 
-// ¸¨Öúº¯Êı£º´´½¨¶à¼¶Ä¿Â¼
+// è¾…åŠ©å‡½æ•°ï¼šåˆ›å»ºå¤šçº§ç›®å½•
 void mkdir_p(const char *dir) {
     char tmp[MAX_PATH];
     char *p = NULL;
@@ -283,7 +283,7 @@ void process_pidx0(const char* filename, const char* output_dir) {
     for (int i = 0; i < start; i++) {
         sprintf(hex_str + i*2, "%02x", start_data[i]);
     }
-    cJSON_AddStringToObject(list, "start", hex_str); // Ìí¼Óµ½JSON¶ÔÏó
+    cJSON_AddStringToObject(list, "start", hex_str); // æ·»åŠ åˆ°JSONå¯¹è±¡
     free(start_data);
     free(hex_str);
 
