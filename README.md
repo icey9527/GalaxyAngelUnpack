@@ -1,3 +1,7 @@
+解包封包以及图片的转换，请使用[GalaxyAngel2Localization](https://github.com/icey9527/GalaxyAngel2Localization)
+
+Unpacking, repacking, and converting images, please use[GalaxyAngel2Localization](https://github.com/icey9527/GalaxyAngel2Localization) 
+
 2025.11.19
 今天是一个悲伤的日子，因为我发现了这个提取工具
 辛辛苦苦研究了半年，结果发现有更简单的捷径
